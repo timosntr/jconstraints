@@ -1,25 +1,17 @@
-/**
- * Copyright 2020, TU Dortmund, Malte Mues (@mmuesly)
+/*
+ * Copyright (C) 2015, United States Government, as represented by the 
+ * Administrator of the National Aeronautics and Space Administration.
+ * All rights reserved.
  *
- * <p>This is a derived version of JConstraints original located at:
- * https://github.com/psycopaths/jconstraints
+ * The PSYCO: A Predicate-based Symbolic Compositional Reasoning environment 
+ * platform is licensed under the Apache License, Version 2.0 (the "License"); you 
+ * may not use this file except in compliance with the License. You may obtain a 
+ * copy of the License at http://www.apache.org/licenses/LICENSE-2.0. 
  *
- * <p>Until commit: https://github.com/tudo-aqua/jconstraints/commit/876e377 the original license
- * is: Copyright (C) 2015, United States Government, as represented by the Administrator of the
- * National Aeronautics and Space Administration. All rights reserved.
- *
- * <p>The PSYCO: A Predicate-based Symbolic Compositional Reasoning environment platform is licensed
- * under the Apache License, Version 2.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://www.apache.org/licenses/LICENSE-2.0.
- *
- * <p>Unless required by applicable law or agreed to in writing, software distributed under the
- * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * <p>Modifications and new contributions are Copyright by TU Dortmund 2020, Malte Mues under Apache
- * 2.0 in alignment with the original repository license.
+ * Unless required by applicable law or agreed to in writing, software distributed 
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR 
+ * CONDITIONS OF ANY KIND, either express or implied. See the License for the 
+ * specific language governing permissions and limitations under the License.
  */
 package gov.nasa.jpf.constraints.expressions;
 
@@ -28,6 +20,7 @@ import gov.nasa.jpf.constraints.api.ExpressionVisitor;
 import gov.nasa.jpf.constraints.api.Valuation;
 import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.types.BuiltinTypes;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -40,8 +33,7 @@ public class QuantifierExpression extends AbstractBoolExpression {
   private final List<? extends Variable<?>> boundVariables;
   private final Expression<Boolean> body;
 
-  public QuantifierExpression(
-      Quantifier quantifier, List<? extends Variable<?>> boundVariables, Expression<Boolean> body) {
+  public QuantifierExpression(Quantifier quantifier, List<? extends Variable<?>> boundVariables, Expression<Boolean> body) {
     this.quantifier = quantifier;
     this.boundVariables = new ArrayList<Variable<?>>(boundVariables);
     this.body = body;
@@ -73,8 +65,7 @@ public class QuantifierExpression extends AbstractBoolExpression {
       return false;
     }
 
-    if (this.boundVariables != other.boundVariables
-        && (this.boundVariables == null || !this.boundVariables.equals(other.boundVariables))) {
+    if (this.boundVariables != other.boundVariables && (this.boundVariables == null || !this.boundVariables.equals(other.boundVariables))) {
       return false;
     }
 
@@ -117,7 +108,8 @@ public class QuantifierExpression extends AbstractBoolExpression {
   }
 
   @Override
-  public void printMalformedExpression(Appendable a, int flags) throws IOException {
+  public void printMalformedExpression(Appendable a, int flags) 
+          throws IOException{
     a.append('(').append(quantifier.toString()).append(" (");
     boolean first = true;
     int varDeclFlags = flags;
@@ -131,16 +123,16 @@ public class QuantifierExpression extends AbstractBoolExpression {
       } else {
         a.append(", ");
       }
-      if (var != null) {
+      if(var != null){
         var.print(a, varDeclFlags);
-      } else {
+      }else{
         a.append("null");
       }
     }
     a.append("): ");
-    if (body != null) {
+    if(body != null){
       body.print(a, flags);
-    } else {
+    }else{
       a.append("null");
     }
     a.append(')');
@@ -153,7 +145,7 @@ public class QuantifierExpression extends AbstractBoolExpression {
 
   @Override
   public void collectFreeVariables(Collection<? super Variable<?>> variables) {
-    // Omit bound variables
+    // Omit bound variables 
     // List of bound variables that DO NOT appear in the outer scope
     List<Variable<?>> boundOnly = new ArrayList<Variable<?>>();
     for (Variable<?> v : boundVariables) {
@@ -167,11 +159,12 @@ public class QuantifierExpression extends AbstractBoolExpression {
 
   @Override
   public Expression<?>[] getChildren() {
-    return new Expression[] {body};
+    return new Expression[]{body};
   }
 
   @Override
-  public Expression<Boolean> duplicate(Expression<?>[] newChildren) {
+  public Expression<Boolean> duplicate(
+          Expression<?>[] newChildren) {
     assert newChildren.length == 1;
 
     Expression<?> newBody = newChildren[0];
@@ -185,4 +178,9 @@ public class QuantifierExpression extends AbstractBoolExpression {
   public <R, D> R accept(ExpressionVisitor<R, D> visitor, D data) {
     return visitor.visit(this, data);
   }
+
+  public static QuantifierExpression create(Quantifier q, List<? extends Variable<?>> boundVariables, Expression<Boolean> body) {
+    return new QuantifierExpression(q, boundVariables, body);
+  }
+
 }

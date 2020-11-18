@@ -52,6 +52,10 @@ public class StringBooleanExpression extends AbstractBoolExpression {
     return new StringBooleanExpression(left, StringBooleanOperator.EQUALS, right);
   }
 
+  public static StringBooleanExpression createNotEquals (Expression<?> left,Expression<?> right) {
+    return new StringBooleanExpression(left,StringBooleanOperator.NOTEQUALS,right);
+  }
+
   public static StringBooleanExpression createContains(Expression<?> left, Expression<?> right) {
     return new StringBooleanExpression(left, StringBooleanOperator.CONTAINS, right);
   }
@@ -79,18 +83,22 @@ public class StringBooleanExpression extends AbstractBoolExpression {
   @Override
   public Boolean evaluate(Valuation values) {
 
-    switch (operator) {
-      case CONTAINS:
-        return evaluateContains(left, right, values);
-      case EQUALS:
-        return evaluateEquals(left, right, values);
-      case PREFIXOF:
-        return evaluatePrefixOf(left, right, values);
-      case SUFFIXOF:
-        return evaluateSuffixOf(left, right, values);
-      default:
-        throw new IllegalArgumentException();
-    }
+  	switch(operator) {
+
+		  case CONTAINS:
+			  return evaluateContains(left,right,values);
+		  case EQUALS:
+			  return evaluateEquals(left,right,values);
+		  case NOTEQUALS:
+			  return evaluateNotEquals(left,right,values);
+		  case PREFIXOF:
+			  return evaluatePrefixOf(left,right,values);
+		  case SUFFIXOF:
+			  return evaluateSuffixOf(left,right,values);
+		  default:
+			  throw new IllegalArgumentException();
+
+	  }
   }
 
   private Boolean evaluateSuffixOf(Expression<?> left, Expression<?> right, Valuation values) {
@@ -119,6 +127,13 @@ public class StringBooleanExpression extends AbstractBoolExpression {
     L lv = left.evaluate(values);
     R rv = right.evaluate(values);
     return lv.equals(rv);
+  }
+
+  private  <L, R> Boolean evaluateNotEquals(Expression<L> left, Expression<R> right,Valuation values) {
+
+  	L lv = left.evaluate(values);
+  	R rv = right.evaluate(values);
+  	return ! lv.equals(rv);
   }
 
   @Override
