@@ -12,6 +12,9 @@ public class StringBooleanExpression extends AbstractBoolExpression {
 	public static StringBooleanExpression createEquals (Expression<?> left,Expression<?> right) {
 		return new StringBooleanExpression(left,StringBooleanOperator.EQUALS,right);
 	}
+	public static StringBooleanExpression createNotEquals (Expression<?> left,Expression<?> right) {
+		return new StringBooleanExpression(left,StringBooleanOperator.NOTEQUALS,right);
+	}
 	public static StringBooleanExpression createContains (Expression<?> left,Expression<?> right) {
 		return new StringBooleanExpression(left,StringBooleanOperator.CONTAINS,right);
 	}
@@ -51,6 +54,8 @@ public class StringBooleanExpression extends AbstractBoolExpression {
 			return evaluateContains(left,right,values);
 		case EQUALS:
 			return evaluateEquals(left,right,values);
+		case NOTEQUALS:
+			return evaluateNotEquals(left,right,values);
 		case PREFIXOF:
 			return evaluatePrefixOf(left,right,values);
 		case SUFFIXOF:
@@ -84,6 +89,13 @@ public class StringBooleanExpression extends AbstractBoolExpression {
 		L lv = left.evaluate(values);
 		R rv = right.evaluate(values);
 		return lv.equals(rv);
+	}
+
+	private  <L, R> Boolean evaluateNotEquals(Expression<L> left, Expression<R> right,Valuation values) {
+
+		L lv = left.evaluate(values);
+		R rv = right.evaluate(values);
+		return ! lv.equals(rv);
 	}
 	
 	@Override
