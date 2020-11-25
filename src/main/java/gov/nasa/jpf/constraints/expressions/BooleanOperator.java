@@ -1,6 +1,6 @@
 package gov.nasa.jpf.constraints.expressions;
 
-@deprecated
+@Deprecated
 public enum BooleanOperator implements ExpressionOperator {
 
 	EQ("=="),

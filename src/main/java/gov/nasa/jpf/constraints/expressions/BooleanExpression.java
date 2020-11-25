@@ -8,7 +8,7 @@ import gov.nasa.jpf.constraints.api.ExpressionVisitor;
 import gov.nasa.jpf.constraints.api.Valuation;
 import gov.nasa.jpf.constraints.api.Variable;
 
-@deprecated
+@Deprecated
 public class BooleanExpression extends AbstractBoolExpression {
 
 	private final Expression<?> left;
