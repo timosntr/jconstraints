@@ -153,11 +153,23 @@ public class NegatingTest {
 
     @Test(groups = {"normalization"})
     public void stringTest() {
+        Variable x = Variable.create(BuiltinTypes.STRING, "string1");
+        Constant c = Constant.create(BuiltinTypes.STRING, "W");
+        StringBooleanExpression notEquals = StringBooleanExpression.createNotEquals(x, c);
+        Expression neg = Negation.create(notEquals);
 
+        Expression<Boolean> nnf = (Expression<Boolean>) neg.accept(NegatingVisitor.getInstance(), false);
+
+
+        Valuation val = new Valuation();
+        val.setValue(x, "a");
+
+        assertFalse(nnf.evaluate(val));
+
+        Valuation val1 = new Valuation();
+        val1.setValue(x, "W");
+
+        assertTrue(nnf.evaluate(val1));
     }
 
-    @Test(groups = {"normalization"})
-    public void ifThenElseTest() {
-
-    }
 }

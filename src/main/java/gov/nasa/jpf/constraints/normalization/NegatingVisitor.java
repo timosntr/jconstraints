@@ -4,6 +4,9 @@ package gov.nasa.jpf.constraints.normalization;
 import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.*;
+import gov.nasa.jpf.constraints.expressions.NumericBooleanExpression;
+import gov.nasa.jpf.constraints.expressions.NumericComparator;
+import gov.nasa.jpf.constraints.expressions.NumericCompound;
 import gov.nasa.jpf.constraints.expressions.functions.FunctionExpression;
 import gov.nasa.jpf.constraints.types.BuiltinTypes;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
@@ -79,11 +82,11 @@ public class NegatingVisitor extends
     }
 
     @Override
-    //ToDo: makes sense?
+    //ToDo: makes sense? how should other types of constants be negated?
     public <E> Expression<?> visit(Constant<E> c, Boolean shouldNegate) {
 
         if(shouldNegate){
-            if (c.getType() instanceof BuiltinTypes.BoolType){
+            if (c.getType() instanceof BuiltinTypes.BoolType) {
                 return Negation.create((Expression<Boolean>) c);
             }
         }
@@ -103,8 +106,6 @@ public class NegatingVisitor extends
         return expr;
     }
 
-    //ToDo: how to negate String Expressions?
-    //ToDo: Test
     @Override
     public Expression<?> visit(StringBooleanExpression expr, Boolean shouldNegate) {
 
@@ -119,7 +120,7 @@ public class NegatingVisitor extends
                 return StringBooleanExpression.createEquals(left, right);
             } else {
                 //other negations of operators not implemented
-                return expr;
+                return Negation.create(expr);
             }
         }
         return expr;
@@ -137,13 +138,15 @@ public class NegatingVisitor extends
     }
 
     //ToDo: test IfThenElse
+    //ToDo: should be unnecessary after the IfThenElseRemover
     @Override
     public <E> Expression<?> visit(IfThenElse<E> expr, Boolean shouldNegate) {
         Expression ifCond = expr.getIf();
         Expression thenExpr = expr.getThen();
         Expression elseExpr = expr.getElse();
 
-        Expression result = PropositionalCompound.create(PropositionalCompound.create(Negation.create(ifCond), LogicalOperator.OR, thenExpr), LogicalOperator.AND, PropositionalCompound.create(ifCond, LogicalOperator.OR, elseExpr));
+        Expression result = PropositionalCompound.create
+                (PropositionalCompound.create(Negation.create(ifCond), LogicalOperator.OR, thenExpr), LogicalOperator.AND, PropositionalCompound.create(ifCond, LogicalOperator.OR, elseExpr));
 
         if(shouldNegate){
             return visit(Negation.create(result), false);
@@ -151,9 +154,13 @@ public class NegatingVisitor extends
         return visit(result, false);
     }
 
-    //ToDo: how to negate a FunctionExpression (uninterpreted function)?
     @Override
-    public <E> Expression<?> visit(FunctionExpression<E> f, Boolean shouldNegate) {
-        return super.visit(f, shouldNegate);
+    public <E> Expression<?> visit(FunctionExpression<E> expr, Boolean shouldNegate) {
+
+        //FunctionExpressions are not further negated
+        if(shouldNegate){
+            return Negation.create((Expression<Boolean>) expr);
+        }
+        return expr;
     }
 }
