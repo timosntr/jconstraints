@@ -3,11 +3,10 @@ package gov.nasa.jpf.constraints.normalization;
 import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.expressions.Negation;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
-import javafx.util.Pair;
 
 import java.util.List;
 
-public class PolarityVisitor extends DuplicatingVisitor<List<Pair<Expression<?>, Integer>>> {
+public class PolarityVisitor extends DuplicatingVisitor<List<Pair>> {
 
     private static final gov.nasa.jpf.constraints.normalization.PolarityVisitor INSTANCE = new gov.nasa.jpf.constraints.normalization.PolarityVisitor();
 
@@ -16,12 +15,12 @@ public class PolarityVisitor extends DuplicatingVisitor<List<Pair<Expression<?>,
     }
 
     @Override
-    protected <E> Expression<?> defaultVisit(Expression<E> expression, List<Pair<Expression<?>, Integer>> data) {
+    protected <E> Expression<?> defaultVisit(Expression<E> expression, List<Pair> data) {
         return super.defaultVisit(expression, data);
     }
 
     @Override
-    public Expression<?> visit(Negation n, List<Pair<Expression<?>, Integer>> data) {
+    public Expression<?> visit(Negation n, List<Pair> data) {
         return super.visit(n, data);
     }
 }
