@@ -5,7 +5,6 @@ import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.types.BuiltinTypes;
 import gov.nasa.jpf.constraints.util.ExpressionUtil;
-import javafx.util.Pair;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
@@ -32,18 +31,20 @@ public class PolarityTest {
 
     }
 
+    @Test(groups = {"normalization"})
     public void positivePolarity2(){
 
     }
 
     @Test(groups = {"normalization"})
     public void negativePolarity1(){
-        Expression<Boolean> disjunction = ExpressionUtil.or(negE3, negE4);
+        /*Expression<Boolean> disjunction = ExpressionUtil.or(negE3, negE4);
         List<Pair> list = new ArrayList<Pair>();
-        list = (List<Pair>) disjunction.accept(PolarityVisitor.getInstance(), null);
+        list = (List<Pair>) disjunction.accept(PolarityVisitor.getInstance(), null);*/
 
     }
 
+    @Test(groups = {"normalization"})
     public void negativePolarity2(){
 
     }
