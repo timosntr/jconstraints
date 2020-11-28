@@ -4,15 +4,14 @@ import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.expressions.LogicalOperator;
 import gov.nasa.jpf.constraints.expressions.Negation;
 import gov.nasa.jpf.constraints.expressions.PropositionalCompound;
-import gov.nasa.jpf.constraints.expressions.QuantifierExpression;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
 
-public class EquivalenceRemoverVisitor extends
+public class ImplicationRemoverVisitor extends
         DuplicatingVisitor<Void> {
 
-    private static final EquivalenceRemoverVisitor INSTANCE = new EquivalenceRemoverVisitor();
+    private static final ImplicationRemoverVisitor INSTANCE = new ImplicationRemoverVisitor();
 
-    public static EquivalenceRemoverVisitor getInstance(){
+    public static ImplicationRemoverVisitor getInstance(){
         return INSTANCE;
     }
 
@@ -22,10 +21,9 @@ public class EquivalenceRemoverVisitor extends
         Expression<?> right = expression.getRight();
         LogicalOperator operator = expression.getOperator();
 
-        if(operator.equals(LogicalOperator.EQUIV)){
-            Expression<Boolean> partLeft = PropositionalCompound.create(Negation.create((Expression<Boolean>) left), LogicalOperator.OR, right);
-            Expression<Boolean> partRight = PropositionalCompound.create(Negation.create((Expression<Boolean>) right), LogicalOperator.OR, left);
-            Expression<Boolean> result = PropositionalCompound.create(partLeft, LogicalOperator.AND, partRight);
+        if(operator.equals(LogicalOperator.IMPLY)){
+            Expression<Boolean> partLeft = Negation.create((Expression<Boolean>) left);
+            Expression<Boolean> result = PropositionalCompound.create(partLeft, LogicalOperator.OR, right);
 
             return visit(result, data);
         }
