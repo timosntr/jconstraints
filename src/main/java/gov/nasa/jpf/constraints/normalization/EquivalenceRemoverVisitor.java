@@ -25,9 +25,12 @@ public class EquivalenceRemoverVisitor extends
         if(operator.equals(LogicalOperator.EQUIV)){
             Expression<Boolean> partLeft = PropositionalCompound.create(Negation.create((Expression<Boolean>) left), LogicalOperator.OR, right);
             Expression<Boolean> partRight = PropositionalCompound.create(Negation.create((Expression<Boolean>) right), LogicalOperator.OR, left);
-            Expression<Boolean> result = PropositionalCompound.create(partLeft, LogicalOperator.AND, partRight);
+            Expression<Boolean> result = PropositionalCompound.create(
+                    (Expression<Boolean>) visit(partLeft, data),
+                    LogicalOperator.AND,
+                    visit(partRight, data));
 
-            return visit(result, data);
+            return result;
         }
 
         return super.defaultVisit(expression, data);

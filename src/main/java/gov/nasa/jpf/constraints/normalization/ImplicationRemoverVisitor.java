@@ -23,9 +23,12 @@ public class ImplicationRemoverVisitor extends
 
         if(operator.equals(LogicalOperator.IMPLY)){
             Expression<Boolean> partLeft = Negation.create((Expression<Boolean>) left);
-            Expression<Boolean> result = PropositionalCompound.create(partLeft, LogicalOperator.OR, right);
+            Expression<Boolean> result = PropositionalCompound.create(
+                    (Expression<Boolean>) visit(partLeft, data),
+                    LogicalOperator.OR,
+                    visit(right, data));
 
-            return visit(result, data);
+            return result;
         }
 
         return super.defaultVisit(expression, data);

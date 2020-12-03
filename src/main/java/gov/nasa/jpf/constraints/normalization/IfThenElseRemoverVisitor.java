@@ -25,9 +25,12 @@ public class IfThenElseRemoverVisitor extends
         Expression firstPart = PropositionalCompound.create(Negation.create(ifCond), LogicalOperator.OR, thenExpr);
         Expression secondPart = PropositionalCompound.create(ifCond, LogicalOperator.OR, elseExpr);
 
-        Expression result = PropositionalCompound.create(firstPart, LogicalOperator.AND, secondPart);
-
         //visit again for finding nested IfThenElse
-        return visit(result, data);
+        Expression result = PropositionalCompound.create(
+                (Expression<Boolean>) visit(firstPart, data),
+                LogicalOperator.AND,
+                visit(secondPart, data));
+
+        return result;
     }
 }
