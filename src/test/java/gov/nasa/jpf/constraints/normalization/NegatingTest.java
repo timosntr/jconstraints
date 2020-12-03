@@ -2,7 +2,6 @@ package gov.nasa.jpf.constraints.normalization;
 
 import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Valuation;
-import gov.nasa.jpf.constraints.api.ValuationEntry;
 import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.types.BuiltinTypes;
@@ -172,4 +171,47 @@ public class NegatingTest {
         assertTrue(nnf.evaluate(val1));
     }
 
+    @Test(groups = {"normalization"})
+    //ToDo: andere Möglichkeit, boolschen Variablen einen Wert zuzuweisen? Top und Bottom?
+    public void constantTest1(){
+        Constant<Boolean> b = Constant.create(BuiltinTypes.BOOL, true);
+        Variable<Boolean> v = Variable.create(BuiltinTypes.BOOL, "var");
+        Expression<Boolean> expr = PropositionalCompound.create(v, LogicalOperator.EQUIV, b);
+        Expression<Boolean> neg = Negation.create(expr);
+
+        Expression<Boolean> nnf = (Expression<Boolean>) neg.accept(NegatingVisitor.getInstance(), false);
+        Expression<Boolean> result = PropositionalCompound.create(v, LogicalOperator.XOR, b);
+
+        assertEquals(nnf, result);
+    }
+
+    @Test(groups = {"normalization"})
+    public void constantTest2(){
+        Constant<Boolean> v = Constant.create(BuiltinTypes.BOOL, true);
+        Expression<Boolean> expr = PropositionalCompound.create(v, LogicalOperator.AND, e3);
+        Expression<Boolean> neg = Negation.create(expr);
+
+        Expression<Boolean> nnf = (Expression<Boolean>) neg.accept(NegatingVisitor.getInstance(), false);
+        Expression<Boolean> result = PropositionalCompound.create(Negation.create(v), LogicalOperator.OR, negE3);
+
+        assertEquals(nnf, result);
+    }
+
+    @Test(groups = {"normalization"})
+    public void unaryMinusTest(){
+        Expression<Boolean> u = UnaryMinus.create(b1);
+        Expression<Boolean> neg = Negation.create(u);
+        Valuation val = new Valuation();
+        val.setValue(b1, true);
+
+        Expression<Boolean> nnf = (Expression<Boolean>) neg.accept(NegatingVisitor.getInstance(), false);
+
+        //minus is omitted
+        assertEquals(nnf, b1);
+        //evaluation should be the same
+        assertTrue(b1.evaluate(val));
+    }
+
+    //ToDo: Tests for BitvectorExpression (BitvectorOperator flip),
+    //ToDo: BitvectorNegation (?), LetExpression
 }

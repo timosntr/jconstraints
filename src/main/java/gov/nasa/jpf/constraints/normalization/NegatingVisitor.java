@@ -6,13 +6,14 @@ import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.expressions.NumericBooleanExpression;
 import gov.nasa.jpf.constraints.expressions.NumericComparator;
-import gov.nasa.jpf.constraints.expressions.NumericCompound;
 import gov.nasa.jpf.constraints.expressions.functions.FunctionExpression;
 import gov.nasa.jpf.constraints.types.BuiltinTypes;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
 
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 
 public class NegatingVisitor extends
@@ -37,21 +38,31 @@ public class NegatingVisitor extends
         return expr;
     }
 
-    //ToDo: negation of NumericCompound should just be the same?
-    @Override
-    public Expression<?> visit(NumericCompound expr, Boolean shouldNegate){
-       return expr;
-    }
-
     @Override
     public Expression<?> visit(PropositionalCompound expr, Boolean shouldNegate) {
         //if shouldNegate is true, a Negation is visited
         if (shouldNegate) {
-            Expression<Boolean> left = (Expression<Boolean>) visit(Negation.create(expr.getLeft()), false);
-            Expression<Boolean> right = (Expression<Boolean>) visit(Negation.create(expr.getRight()), false);
+            Expression<Boolean> left = (Expression<Boolean>) expr.getLeft();
+            Expression<Boolean> right = (Expression<Boolean>) expr.getRight();
             LogicalOperator operator = expr.getOperator();
             LogicalOperator negOperator = operator.invert();
-            return PropositionalCompound.create(left, negOperator, right);
+            Expression<Boolean> newLeft;
+            Expression<Boolean> newRight;
+
+            if((operator.equals(LogicalOperator.EQUIV) || operator.equals(LogicalOperator.XOR)) &&
+                    (left instanceof Variable || left instanceof Constant)){
+                newLeft = left;
+            } else {
+                newLeft = (Expression<Boolean>) visit(Negation.create(left), false);
+            }
+            if((operator.equals(LogicalOperator.EQUIV) || operator.equals(LogicalOperator.XOR)) &&
+                    (right instanceof Variable || right instanceof Constant)) {
+                newRight = right;
+            } else {
+                newRight = (Expression<Boolean>) visit(Negation.create(right), false);
+            }
+
+            return PropositionalCompound.create(newLeft, negOperator, newRight);
 
         } else {
             Expression<Boolean> left = (Expression<Boolean>) visit(expr.getLeft(), false);
@@ -79,18 +90,6 @@ public class NegatingVisitor extends
             return negated;
         }
         return var;
-    }
-
-    @Override
-    //ToDo: makes sense? how should other types of constants be negated?
-    public <E> Expression<?> visit(Constant<E> c, Boolean shouldNegate) {
-
-        if(shouldNegate){
-            if (c.getType() instanceof BuiltinTypes.BoolType) {
-                return Negation.create((Expression<Boolean>) c);
-            }
-        }
-        return c;
     }
 
     public Expression<?> visit(QuantifierExpression quantified, Boolean shouldNegate) {
@@ -126,19 +125,7 @@ public class NegatingVisitor extends
         return expr;
     }
 
-    //ToDo
-    @Override
-    public Expression<?> visit(StringCompoundExpression n, Boolean shouldNegate) {
-        return super.visit(n, shouldNegate);
-    }
-
-    @Override
-    public Expression<?> visit(StringIntegerExpression n, Boolean data) {
-        return super.visit(n, data);
-    }
-
-    //ToDo: test IfThenElse
-    //ToDo: should be unnecessary after the IfThenElseRemover
+    //should be unnecessary after the IfThenElseRemover
     @Override
     public <E> Expression<?> visit(IfThenElse<E> expr, Boolean shouldNegate) {
         Expression ifCond = expr.getIf();
@@ -162,5 +149,99 @@ public class NegatingVisitor extends
             return Negation.create((Expression<Boolean>) expr);
         }
         return expr;
+    }
+
+    @Override
+    public Expression<?> visit(RegExBooleanExpression expr, Boolean shouldNegate) {
+        if(shouldNegate){
+            return Negation.create(expr);
+        }
+        return expr;
+    }
+
+    @Override
+    public <E> Expression<?> visit(Constant<E> c, Boolean shouldNegate) {
+        if(shouldNegate){
+            if (c.getType() instanceof BuiltinTypes.BoolType) {
+                return Negation.create((Expression<Boolean>) c);
+            }
+        }
+        return c;
+    }
+
+    @Override
+    public <E> Expression<?> visit(UnaryMinus<E> expr, Boolean shouldNegate) {
+        if(shouldNegate){
+            if(expr.getType().equals(BuiltinTypes.BOOL)){
+                return expr.getNegated();
+            }
+        }
+        return expr;
+    }
+
+    @Override
+    public <E> Expression<?> visit(BitvectorExpression<E> expr, Boolean shouldNegate) {
+        if(shouldNegate){
+            Expression left = expr.getLeft();
+            Expression right = expr.getRight();
+            BitvectorOperator operator = expr.getOperator();
+
+            if(operator.equals(BitvectorOperator.AND)){
+                return BitvectorExpression.create(left, BitvectorOperator.OR, right);
+            } else if(operator.equals(BitvectorOperator.OR)){
+                return BitvectorExpression.create(left, BitvectorOperator.AND, right);
+            }
+            return Negation.create((Expression<Boolean>) expr);
+        }
+        return expr;
+    }
+
+    //ToDo: sinnvoll?
+    @Override
+    public <E> Expression<?> visit(BitvectorNegation<E> expr, Boolean shouldNegate) {
+        if(shouldNegate) {
+            if(expr.getType().equals(BuiltinTypes.BOOL)) {
+                return expr.getNegated();
+            }
+        }
+        return expr;
+    }
+
+    //ToDo: what is the negation of a LetExpression?
+    // just the negation of the expressions in 'values',
+    // just the negation of 'mainValue'
+    // or maybe both?
+    @Override
+    public Expression<?> visit(LetExpression expr, Boolean shouldNegate) {
+
+        List<Variable> variables = expr.getParameters();
+        Map<Variable, Expression> values = expr.getParameterValues();
+        Expression mainValue = expr.getMainValue();
+
+        if(shouldNegate){
+            Collection<Expression> collection = values.values();
+            Collection<Expression> newCollection = null;
+
+            for(Expression c : collection){
+                newCollection.add(visit(Negation.create(c), false));
+                values.replace((Variable) values.get(c), Negation.create(c));
+            }
+        }
+        //ToDo: or should a part of expr be visited?
+        return expr;
+
+        //simple version for no further negation
+        /*if(shouldNegate){
+            return Negation.create(expr);
+        }
+        return expr;*/
+    }
+
+    //defaultVisit for CastExpression, NumericCompound, StringIntegerExpression,
+    //StringCompoundExpression, RegexCompoundExpression, RegexOperatorExpression,
+    //RegExBooleanExpression
+    @Override
+    protected <E> Expression<?> defaultVisit(Expression<E> expression, Boolean shouldNegate) {
+        return super.defaultVisit(expression, shouldNegate);
     }
 }
