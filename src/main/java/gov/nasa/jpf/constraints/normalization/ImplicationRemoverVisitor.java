@@ -30,7 +30,11 @@ public class ImplicationRemoverVisitor extends
 
             return result;
         }
+        Expression visitedExpr = PropositionalCompound.create(
+                (Expression<Boolean>) visit(left, data),
+                operator,
+                visit(right, data));
 
-        return super.defaultVisit(expression, data);
+        return visitedExpr;
     }
 }

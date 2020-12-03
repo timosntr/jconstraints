@@ -33,6 +33,11 @@ public class EquivalenceRemoverVisitor extends
             return result;
         }
 
-        return super.defaultVisit(expression, data);
+        Expression visitedExpr = PropositionalCompound.create(
+                (Expression<Boolean>) visit(left, data),
+                operator,
+                visit(right, data));
+
+        return visitedExpr;
     }
 }
