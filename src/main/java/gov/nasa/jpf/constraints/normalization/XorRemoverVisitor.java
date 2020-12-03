@@ -24,11 +24,18 @@ public class XorRemoverVisitor extends
         if(operator.equals(LogicalOperator.XOR)){
             Expression<Boolean> partLeft = PropositionalCompound.create((Expression<Boolean>) left, LogicalOperator.OR, right);
             Expression<Boolean> partRight = PropositionalCompound.create(Negation.create((Expression<Boolean>) left), LogicalOperator.OR, Negation.create((Expression<Boolean>) right));
-            Expression<Boolean> result = PropositionalCompound.create(partLeft, LogicalOperator.AND, partRight);
+            Expression<Boolean> result = PropositionalCompound.create(
+                    (Expression<Boolean>) visit(partLeft, data),
+                    LogicalOperator.AND,
+                    visit(partRight, data));
 
-            return visit(result, data);
+            return result;
         }
+        Expression visitedExpr = PropositionalCompound.create(
+                (Expression<Boolean>) visit(left, data),
+                operator,
+                visit(right, data));
 
-        return super.defaultVisit(expression, data);
+        return visitedExpr;
     }
 }
