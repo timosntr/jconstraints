@@ -196,21 +196,15 @@ public class NegatingVisitor extends
         return expr;
     }
 
-    //ToDo: sinnvoll?
     @Override
     public <E> Expression<?> visit(BitvectorNegation<E> expr, Boolean shouldNegate) {
         if(shouldNegate) {
-            if(expr.getType().equals(BuiltinTypes.BOOL)) {
-                return expr.getNegated();
-            }
+            Negation.create((Expression<Boolean>) expr);
         }
         return expr;
     }
 
-    //ToDo: what is the negation of a LetExpression?
-    // just the negation of the expressions in 'values',
-    // just the negation of 'mainValue'
-    // or maybe both?
+    //ToDo: what is the negation of a LetExpression? -> flatten before negation?
     @Override
     public Expression<?> visit(LetExpression expr, Boolean shouldNegate) {
 
@@ -218,23 +212,19 @@ public class NegatingVisitor extends
         Map<Variable, Expression> values = expr.getParameterValues();
         Expression mainValue = expr.getMainValue();
 
-        if(shouldNegate){
-            Collection<Expression> collection = values.values();
-            Collection<Expression> newCollection = null;
-
-            for(Expression c : collection){
-                newCollection.add(visit(Negation.create(c), false));
-                values.replace((Variable) values.get(c), Negation.create(c));
-            }
-        }
-        //ToDo: or should a part of expr be visited?
-        return expr;
-
-        //simple version for no further negation
+        //option1: without flattening
         /*if(shouldNegate){
-            return Negation.create(expr);
+            Expression negatedMain = visit(Negation.create(mainValue));
+            return LetExpression.create(variables, values, negatedMain);
         }
-        return expr;*/
+        return LetExpression.create(variables, values, visit(mainValue));*/
+
+        //option2: with flattening
+        Expression flattened = expr.flattenLetExpression();
+        if(shouldNegate){
+            return Negation.create(flattened);
+        }
+        return flattened;
     }
 
     //defaultVisit for CastExpression, NumericCompound, StringIntegerExpression,
