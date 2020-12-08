@@ -5,7 +5,6 @@ import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.expressions.functions.FunctionExpression;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
-import org.apache.commons.math3.analysis.function.Exp;
 
 //should be used after removal of equivalences, implications, ifThenElse and XOR
 //negations should be handled ahead of ConjunctionCreator
@@ -72,6 +71,8 @@ public class ConjunctionCreatorVisitor extends
 
             } else if (operatorIsOR && leftOpIsOR && !rightOpIsAND) {
                 //case: (A OR B) OR (C OR D)
+                /*Expression result = PropositionalCompound.create(leftChild, LogicalOperator.OR, rightChild);
+                return result;*/
                 return expr;
             }
 
@@ -92,6 +93,8 @@ public class ConjunctionCreatorVisitor extends
 
             } else if (operatorIsOR && leftOpIsOR) {
                 //case: (A OR B) OR (C)
+                /*Expression result = PropositionalCompound.create(leftChild, LogicalOperator.OR, rightChild);
+                return result;*/
                 return expr;
             }
         } else if (!leftIsPropComp && rightIsPropComp) {
@@ -110,18 +113,23 @@ public class ConjunctionCreatorVisitor extends
                 return result;
 
             } else if (operatorIsOR && rightOpIsOR) {
+                //case: (A) OR (C OR D)
+                /*Expression result = PropositionalCompound.create(leftChild, LogicalOperator.OR, rightChild);
+                return result;*/
                 return expr;
             }
 
         } else if (!leftIsPropComp && !rightIsPropComp) {
+            //cases: (A) OR (B); (A) AND (B)
             if (operatorIsOR || operatorIsAND) {
                 return expr;
             }
         } else {
             throw new UnsupportedOperationException("Remove equivalences, implications, ifThenElse, and XOR, and handle negations first.");
         }
-        //if we are here, there are no conjunctions under disjunctions in the tree
-        return expr;
+        //if we are here, there are no conjunctions under disjunctions in the tree (anymore)
+        Expression result = PropositionalCompound.create(leftChild, operator, rightChild);
+        return result;
     }
 
     @Override
@@ -207,15 +215,6 @@ public class ConjunctionCreatorVisitor extends
     @Override
     public <E> Expression<?> visit(BitvectorNegation<E> n, Void data) {
         return n;
-    }
-
-    //Helper methods for tests
-    public <E> Expression<?> and(Expression a, Expression b){
-        return PropositionalCompound.create(a, LogicalOperator.AND, b);
-    }
-
-    public <E> Expression<?> or(Expression a, Expression b){
-        return PropositionalCompound.create(a, LogicalOperator.OR, b);
     }
 
 }
