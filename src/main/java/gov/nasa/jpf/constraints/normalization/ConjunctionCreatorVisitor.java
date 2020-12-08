@@ -44,54 +44,30 @@ public class ConjunctionCreatorVisitor extends
                 //case: (A AND B) OR (C AND D)
                 Expression result = PropositionalCompound.create(
                         PropositionalCompound.create(
-                                PropositionalCompound.create(
-                                        leftLeft,
-                                        LogicalOperator.OR,
-                                        rightLeft),
+                                PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightLeft),
                                 LogicalOperator.AND,
-                                PropositionalCompound.create(
-                                        leftLeft,
-                                        LogicalOperator.OR,
-                                        rightRight)),
+                                PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightRight)),
                         LogicalOperator.AND,
                         PropositionalCompound.create(
-                                PropositionalCompound.create(
-                                        leftRight,
-                                        LogicalOperator.OR,
-                                        rightLeft),
+                                PropositionalCompound.create(leftRight, LogicalOperator.OR, rightLeft),
                                 LogicalOperator.AND,
-                                PropositionalCompound.create(
-                                        leftRight,
-                                        LogicalOperator.OR,
-                                        rightRight)));
+                                PropositionalCompound.create(leftRight, LogicalOperator.OR, rightRight)));
                 return result;
 
             } else if (operatorIsOR && leftOpIsAND && rightOpIsOR) {
                 //case: (A AND B) OR (C OR D)
                 Expression result = PropositionalCompound.create(
-                        PropositionalCompound.create(
-                                leftLeft,
-                                LogicalOperator.OR,
-                                rightChild),
+                        PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightChild),
                         LogicalOperator.AND,
-                        PropositionalCompound.create(
-                                leftRight,
-                                LogicalOperator.OR,
-                                rightChild));
+                        PropositionalCompound.create(leftRight, LogicalOperator.OR, rightChild));
                 return result;
 
             } else if (operatorIsOR && leftOpIsOR && rightOpIsAND) {
                 //case: (A OR B) OR (C AND D)
                 Expression result = PropositionalCompound.create(
-                        PropositionalCompound.create(
-                                leftChild,
-                                LogicalOperator.OR,
-                                rightLeft),
+                        PropositionalCompound.create(leftChild, LogicalOperator.OR, rightLeft),
                         LogicalOperator.AND,
-                        PropositionalCompound.create(
-                                leftChild,
-                                LogicalOperator.OR,
-                                rightRight));
+                        PropositionalCompound.create(leftChild, LogicalOperator.OR, rightRight));
                 return result;
 
             } else if (operatorIsOR && leftOpIsOR && !rightOpIsAND) {
@@ -109,15 +85,9 @@ public class ConjunctionCreatorVisitor extends
             if (operatorIsOR && leftOpIsAND) {
                 //case: (A AND B) OR (C)
                 Expression result = PropositionalCompound.create(
-                        PropositionalCompound.create(
-                                leftLeft,
-                                LogicalOperator.OR,
-                                rightChild),
+                        PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightChild),
                         LogicalOperator.AND,
-                        PropositionalCompound.create(
-                                leftRight,
-                                LogicalOperator.OR,
-                                rightChild));
+                        PropositionalCompound.create(leftRight, LogicalOperator.OR, rightChild));
                 return result;
 
             } else if (operatorIsOR && leftOpIsOR) {
@@ -131,32 +101,121 @@ public class ConjunctionCreatorVisitor extends
             Expression rightLeft = ((PropositionalCompound) rightChild).getLeft();
             Expression rightRight = ((PropositionalCompound) rightChild).getRight();
 
-            if (operatorIsOR && !leftIsPropComp && rightIsPropComp && rightOpIsAND) {
+            if (operatorIsOR && rightOpIsAND) {
                 //case: (A) OR (C AND D)
                 Expression result = PropositionalCompound.create(
-                        PropositionalCompound.create(
-                                leftChild,
-                                LogicalOperator.OR,
-                                rightLeft),
+                        PropositionalCompound.create(leftChild, LogicalOperator.OR, rightLeft),
                         LogicalOperator.AND,
-                        PropositionalCompound.create(
-                                leftChild,
-                                LogicalOperator.OR,
-                                rightRight));
+                        PropositionalCompound.create(leftChild, LogicalOperator.OR, rightRight));
                 return result;
 
-            } else if (operatorIsOR && !leftIsPropComp && rightIsPropComp && rightOpIsOR) {
+            } else if (operatorIsOR && rightOpIsOR) {
                 return expr;
             }
 
         } else if (!leftIsPropComp && !rightIsPropComp) {
-
             if (operatorIsOR || operatorIsAND) {
                 return expr;
             }
         } else {
             throw new UnsupportedOperationException("Remove equivalences, implications, ifThenElse, and XOR, and handle negations first.");
         }
+        //if we are here, there are no conjunctions under disjunctions in the tree
         return expr;
     }
+
+    @Override
+    public Expression<?> visit(QuantifierExpression q, Void data) {
+        return super.visit(q, data);
+    }
+
+    @Override
+    public <E> Expression<?> visit(FunctionExpression<E> f, Void data) {
+        return super.visit(f, data);
+    }
+
+    @Override
+    public <E> Expression<?> visit(Variable<E> v, Void data) {
+        return v;
+    }
+
+    @Override
+    public <E> Expression<?> visit(Constant<E> c, Void data) {
+        return c;
+    }
+
+    @Override
+    public Expression<?> visit(Negation n, Void data) {
+        return n;
+    }
+
+    @Override
+    public Expression<?> visit(NumericBooleanExpression n, Void data) {
+        return n;
+    }
+
+    @Override
+    public Expression<?> visit(RegExBooleanExpression n, Void data) {
+        return n;
+    }
+
+    @Override
+    public Expression<?> visit(StringBooleanExpression n, Void data) {
+        return n;
+    }
+
+    @Override
+    public Expression<?> visit(StringIntegerExpression n, Void data) {
+        return n;
+    }
+
+    @Override
+    public Expression<?> visit(StringCompoundExpression n, Void data) {
+        return n;
+    }
+
+    @Override
+    public Expression<?> visit(RegexCompoundExpression n, Void data) {
+        return n;
+    }
+
+    @Override
+    public Expression<?> visit(RegexOperatorExpression n, Void data) {
+        return n;
+    }
+
+    @Override
+    public <F, E> Expression<?> visit(CastExpression<F, E> cast, Void data) {
+        return cast;
+    }
+
+    @Override
+    public <E> Expression<?> visit(NumericCompound<E> n, Void data) {
+        return n;
+    }
+
+    @Override
+    public <E> Expression<?> visit(UnaryMinus<E> n, Void data) {
+        return n;
+    }
+
+    @Override
+    public <E> Expression<?> visit(BitvectorExpression<E> bv, Void data) {
+        return bv;
+    }
+
+    @Override
+    public <E> Expression<?> visit(BitvectorNegation<E> n, Void data) {
+        return n;
+    }
+
+    //Helper methods for tests
+    public <E> Expression<?> and(Expression a, Expression b){
+        return PropositionalCompound.create(a, LogicalOperator.AND, b);
+    }
+
+    public <E> Expression<?> or(Expression a, Expression b){
+        return PropositionalCompound.create(a, LogicalOperator.OR, b);
+    }
+
 }
