@@ -4,13 +4,14 @@ import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.types.BuiltinTypes;
-import org.smtlib.sexpr.Sexpr;
+import gov.nasa.jpf.constraints.util.ExpressionUtil;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 
 public class ConjunctionCreatorTest {
 
@@ -344,7 +345,7 @@ public class ConjunctionCreatorTest {
 
     @Test(groups = {"normalization"})
     public void nestedTest2(){
-        Expression nested = PropositionalCompound.create(
+        Expression nested2 = PropositionalCompound.create(
                 PropositionalCompound.create(
                         b1,
                         LogicalOperator.AND,
@@ -358,11 +359,55 @@ public class ConjunctionCreatorTest {
                                 LogicalOperator.OR,
                                 b2)));
 
-        Expression expected = ConjunctionCreatorVisitor.getInstance().and(ConjunctionCreatorVisitor.getInstance().and(ConjunctionCreatorVisitor.getInstance().or(b1, b1), ConjunctionCreatorVisitor.getInstance().or(b1, ConjunctionCreatorVisitor.getInstance().or(b1, b2))), ConjunctionCreatorVisitor.getInstance().and(ConjunctionCreatorVisitor.getInstance().or(b2, b1), ConjunctionCreatorVisitor.getInstance().or(b2, ConjunctionCreatorVisitor.getInstance().or(b1, b2))));
+        Expression expected = ExpressionUtil.and(ExpressionUtil.and(ExpressionUtil.or(b1, b1), ExpressionUtil.or(b1, ExpressionUtil.or(b1, b2))),
+                ExpressionUtil.and(ExpressionUtil.or(b2, b1), ExpressionUtil.or(b2, ExpressionUtil.or(b1, b2))));
+
+        Expression<Boolean> cnf = (Expression<Boolean>) nested2.accept(ConjunctionCreatorVisitor.getInstance(), null);
+
+        assertEquals(cnf, expected);
+    }
+
+    @Test(groups = {"normalization"})
+    public void nestedTest3(){
+        Expression nested3 = ExpressionUtil.and(b1, ExpressionUtil.and(ExpressionUtil.or(ExpressionUtil.and(e3,e3)),e3),
+                ExpressionUtil.or(e4, ExpressionUtil.and(e4, e4)));
+
+        Expression<Boolean> cnf = (Expression<Boolean>) nested3.accept(ConjunctionCreatorVisitor.getInstance(), null);
+
+        assertNotEquals(cnf, nested3);
+    }
+
+    @Test(groups = {"normalization"})
+    public void nestedTest4(){
+        Expression nested4 = ExpressionUtil.or(ExpressionUtil.or(b1, b2), ExpressionUtil.or(ExpressionUtil.and(e3, e4)), ExpressionUtil.or(e3, e4));
+
+        Expression<Boolean> cnf = (Expression<Boolean>) nested4.accept(ConjunctionCreatorVisitor.getInstance(), null);
+
+        assertNotEquals(cnf, nested4);
+    }
+
+    @Test(groups = {"normalization"})
+    public void nestedTest(){
+        Expression nested = PropositionalCompound.create(
+                PropositionalCompound.create(
+                        b1,
+                        LogicalOperator.AND,
+                        b2),
+                LogicalOperator.OR,
+                PropositionalCompound.create(
+                        PropositionalCompound.create(
+                                b1,
+                                LogicalOperator.AND,
+                                b2),
+                        LogicalOperator.OR,
+                        PropositionalCompound.create(
+                                b1,
+                                LogicalOperator.AND,
+                                b2)));
 
         Expression<Boolean> cnf = (Expression<Boolean>) nested.accept(ConjunctionCreatorVisitor.getInstance(), null);
 
-        assertEquals(cnf, expected);
+        System.out.println(cnf);
     }
 }
 
