@@ -13,6 +13,11 @@ public class NormalizationUtil {
     //ToDo: further normalizing methods (order, dependencies...)
     //ToDo: (optional) relabel
 
+    public static <E> Expression<E> createCNF(Expression<E> e) {
+        Expression cnf = e.accept(ConjunctionCreatorVisitor.getInstance(), null);
+        return cnf;
+    }
+
     public static <E> Expression<E> pushNegation(Expression<E> e) {
         Expression nnf = e.accept(NegatingVisitor.getInstance(), false);
         return nnf;
