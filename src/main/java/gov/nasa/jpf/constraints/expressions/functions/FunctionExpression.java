@@ -34,7 +34,7 @@ import java.util.Arrays;
 import java.util.Collection;
 
 public class FunctionExpression<T> extends AbstractExpression<T> {
-
+  
   private final Function<T> function;
   private final Expression<?>[] args;
 
@@ -63,27 +63,27 @@ public class FunctionExpression<T> extends AbstractExpression<T> {
     }
     return function.evaluate(argValues);
   }
-
+  
   @Override
   public void collectFreeVariables(Collection<? super Variable<?>> variables) {
     for (Expression<?> a : args) a.collectFreeVariables(variables);
   }
-
+  
   @Override
   public <R, D> R accept(ExpressionVisitor<R, D> visitor, D data) {
     return visitor.visit(this, data);
   }
-
+  
   @Override
   public Type<T> getType() {
     return function.getReturnType();
   }
-
+  
   @Override
   public Expression<?>[] getChildren() {
     return args.clone();
   }
-
+  
   @Override
   public Expression<?> duplicate(Expression<?>[] newChildren) {
     Type<?>[] ptypes = function.getParamTypes();
@@ -92,10 +92,10 @@ public class FunctionExpression<T> extends AbstractExpression<T> {
     for (int i = 0; i < ptypes.length; i++) {
       assert ptypes[i].equals(newChildren[i].getType());
     }
-
+    
     return new FunctionExpression<>(function, newChildren);
   }
-
+  
   @Override
   public void print(Appendable a, int flags) throws IOException {
     boolean qid = Expression.quoteIdentifiers(flags);
@@ -148,6 +148,7 @@ public class FunctionExpression<T> extends AbstractExpression<T> {
     return result;
   }
 
+
   /* (non-Javadoc)
    * @see java.lang.Object#equals(java.lang.Object)
    */
@@ -171,4 +172,9 @@ public class FunctionExpression<T> extends AbstractExpression<T> {
   public Expression<?>[] getArgs() {
     return args;
   }
+
+  public static FunctionExpression create(Function f, Expression<?>[] args) {
+    return new FunctionExpression(f, args);
+  }
+
 }

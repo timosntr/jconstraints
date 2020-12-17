@@ -27,44 +27,49 @@ import com.google.common.base.Joiner;
 import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.types.Type;
 import gov.nasa.jpf.constraints.util.AbstractPrintable;
+
 import java.io.IOException;
 
-public class Function<T> extends AbstractPrintable {
+import com.google.common.base.Joiner;
 
+public class Function<T> extends AbstractPrintable {
+  
   private final String name;
   private final Type<T> returnType;
   private final Type<?>[] paramTypes;
 
   @SafeVarargs
-  public Function(String name, Type<T> returnType, Type<?>... paramTypes) {
+  public Function(String name, Type<T> returnType, Type<?> ...paramTypes) {
     this.name = name;
     this.returnType = returnType;
     this.paramTypes = paramTypes;
   }
-
+  
+  
   public String getName() {
     return name;
   }
-
+  
   public Type<T> getReturnType() {
     return returnType;
   }
-
+  
   public Type<?>[] getParamTypes() {
     return paramTypes;
   }
-
-  public FunctionExpression<T> toExpression(Expression<?>... args) {
-    return new FunctionExpression<>(this, args);
+  
+  public FunctionExpression<T> toExpression(Expression<?> ...args) {
+	  return new FunctionExpression<>(this, args);
   }
-
+  
   public T evaluate(Object... args) {
-    throw new UnsupportedOperationException("Semantics for function '" + name + "' undefined");
+	  throw new UnsupportedOperationException("Semantics for function '" + name + "' undefined");
+  }
+  
+  public int getArity() {
+	  return paramTypes.length;
   }
 
-  public int getArity() {
-    return paramTypes.length;
-  }
 
   @Override
   public void print(Appendable a) throws IOException {
@@ -72,4 +77,9 @@ public class Function<T> extends AbstractPrintable {
     Joiner.on(',').appendTo(a, paramTypes);
     a.append("):").append(returnType.toString());
   }
+
+  public static Function create(String name, Type returnType, Type ...paramTypes) {
+    return new Function(name, returnType, paramTypes);
+  }
+
 }
