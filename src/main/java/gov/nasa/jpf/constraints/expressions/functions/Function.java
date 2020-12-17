@@ -69,4 +69,8 @@ public class Function<T> extends AbstractPrintable {
     a.append("):").append(returnType.toString());
   }
 
+  public static Function create(String name, Type returnType, Type ...paramTypes) {
+    return new Function(name, returnType, paramTypes);
+  }
+
 }

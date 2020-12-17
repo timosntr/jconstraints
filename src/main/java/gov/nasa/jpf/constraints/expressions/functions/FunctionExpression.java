@@ -20,11 +20,14 @@ import gov.nasa.jpf.constraints.api.ExpressionVisitor;
 import gov.nasa.jpf.constraints.api.Valuation;
 import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.AbstractExpression;
+import gov.nasa.jpf.constraints.expressions.Quantifier;
+import gov.nasa.jpf.constraints.expressions.QuantifierExpression;
 import gov.nasa.jpf.constraints.types.Type;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
 public class FunctionExpression<T> extends AbstractExpression<T> {
   
@@ -176,4 +179,9 @@ public class FunctionExpression<T> extends AbstractExpression<T> {
     public Expression<?>[] getArgs() {
         return args;
     }
+
+  public static FunctionExpression create(Function f, Expression<?>[] args) {
+    return new FunctionExpression(f, args);
+  }
+
 }

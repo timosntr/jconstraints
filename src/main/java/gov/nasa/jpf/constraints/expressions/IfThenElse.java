@@ -19,7 +19,10 @@ import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.ExpressionVisitor;
 import gov.nasa.jpf.constraints.api.Valuation;
 import gov.nasa.jpf.constraints.api.Variable;
+import gov.nasa.jpf.constraints.simplifiers.datastructures.ArithmeticVarReplacements;
 import gov.nasa.jpf.constraints.types.Type;
+import gov.nasa.jpf.constraints.util.ExpressionUtil;
+
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Objects;
@@ -169,5 +172,15 @@ public class IfThenElse<E> extends AbstractExpression<E> {
         Type<E> type = thenExpr.getType();
         Expression<E> convertedElse = elseExpr.requireAs(type);
         return new IfThenElse<E>(condition, thenExpr, convertedElse);
+    }
+
+    public Expression flattenIfThenElse() {
+        Expression ifCond = this.getIf();
+        Expression thenExpr = this.getThen();
+        Expression elseExpr = this.getElse();
+
+        Expression flattened = PropositionalCompound.create
+                (PropositionalCompound.create(Negation.create(ifCond), LogicalOperator.OR, thenExpr), LogicalOperator.AND, PropositionalCompound.create(ifCond, LogicalOperator.OR, elseExpr));
+        return flattened;
     }
 }
