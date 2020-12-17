@@ -8,9 +8,32 @@ import gov.nasa.jpf.constraints.expressions.QuantifierExpression;
 
 public class NormalizationUtil {
 
+    //ToDo: renameBoundVar, minimizeScope, eliminateQuantifiers, skolemize (contains the three listed methods)
+    //ToDo: normalize
+    //ToDo: further normalizing methods (order, dependencies...)
+    //ToDo: (optional) relabel
 
+    public static <E> Expression<E> pushNegation(Expression<E> e) {
+        Expression nnf = e.accept(NegatingVisitor.getInstance(), false);
+        return nnf;
+    }
 
-    //ToDo: decide whether check here or as separate visitor
+    public static <E> Expression<E> eliminateEquivalence(Expression<E> e) {
+        Expression noEquivalence = e.accept(EquivalenceRemoverVisitor.getInstance(), null);
+        return noEquivalence;
+    }
+
+    public static <E> Expression<E> eliminateIfThenElse(Expression<E> e) {
+        Expression noIfThenElse = e.accept(IfThenElseRemoverVisitor.getInstance(), null);
+        return noIfThenElse;
+    }
+
+    public static <E> Expression<E> eliminateImplication(Expression<E> e) {
+        Expression noImplication = e.accept(ImplicationRemoverVisitor.getInstance(), null);
+        return noImplication;
+    }
+
+    //ToDo: decide whether check here or use the separate visitor
     public static boolean quantifierCheck(Expression<?> expr){
         if(expr instanceof QuantifierExpression){
             return true;
