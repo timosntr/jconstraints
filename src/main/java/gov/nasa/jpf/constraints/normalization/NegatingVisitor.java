@@ -128,12 +128,14 @@ public class NegatingVisitor extends
     //should be unnecessary after the IfThenElseRemover
     @Override
     public <E> Expression<?> visit(IfThenElse<E> expr, Boolean shouldNegate) {
-        Expression ifCond = expr.getIf();
+        /*Expression ifCond = expr.getIf();
         Expression thenExpr = expr.getThen();
         Expression elseExpr = expr.getElse();
 
         Expression result = PropositionalCompound.create
-                (PropositionalCompound.create(Negation.create(ifCond), LogicalOperator.OR, thenExpr), LogicalOperator.AND, PropositionalCompound.create(ifCond, LogicalOperator.OR, elseExpr));
+                (PropositionalCompound.create(Negation.create(ifCond), LogicalOperator.OR, thenExpr), LogicalOperator.AND, PropositionalCompound.create(ifCond, LogicalOperator.OR, elseExpr));*/
+
+        Expression result = expr.flattenIfThenElse();
 
         if(shouldNegate){
             return visit(Negation.create(result), false);
@@ -197,15 +199,6 @@ public class NegatingVisitor extends
     }
 
     @Override
-    public <E> Expression<?> visit(BitvectorNegation<E> expr, Boolean shouldNegate) {
-        if(shouldNegate) {
-            Negation.create((Expression<Boolean>) expr);
-        }
-        return expr;
-    }
-
-    //ToDo: what is the negation of a LetExpression? -> flatten before negation?
-    @Override
     public Expression<?> visit(LetExpression expr, Boolean shouldNegate) {
 
         List<Variable> variables = expr.getParameters();
@@ -222,14 +215,14 @@ public class NegatingVisitor extends
         //option2: with flattening
         Expression flattened = expr.flattenLetExpression();
         if(shouldNegate){
-            return Negation.create(flattened);
+            return visit(Negation.create(flattened), false);
         }
-        return flattened;
+        return visit(flattened, false);
     }
 
     //defaultVisit for CastExpression, NumericCompound, StringIntegerExpression,
     //StringCompoundExpression, RegexCompoundExpression, RegexOperatorExpression,
-    //RegExBooleanExpression
+    //RegExBooleanExpression, BitvectorNegation
     @Override
     protected <E> Expression<?> defaultVisit(Expression<E> expression, Boolean shouldNegate) {
         return super.defaultVisit(expression, shouldNegate);
