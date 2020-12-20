@@ -69,6 +69,8 @@ public abstract class Expression<E> extends AbstractPrintable {
    * @param names 
    */
   public abstract void collectFreeVariables(Collection<? super Variable<?>> variables);
+
+  public abstract void collectBoundVariables(Collection<? super Variable<?>> variables);
   
   public abstract <R,D> R accept(ExpressionVisitor<R, D> visitor, D data);
   

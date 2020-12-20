@@ -57,6 +57,12 @@ public class BooleanExpression extends AbstractBoolExpression {
 	}
 
 	@Override
+	public void collectBoundVariables(Collection<? super Variable<?>> variables) {
+		left.collectBoundVariables(variables);
+		right.collectBoundVariables(variables);
+	}
+
+	@Override
 	public <R, D> R accept(ExpressionVisitor<R, D> visitor, D data) {
 		return visitor.visit(this, data);
 	}

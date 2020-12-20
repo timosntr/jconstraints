@@ -58,6 +58,11 @@ public class Variable<E> extends Expression<E> {
   public void collectFreeVariables(Collection<? super Variable<?>> variables) {
     variables.add(this);
   }
+
+  @Override
+  public void collectBoundVariables(Collection<? super Variable<?>> variables) {
+    //nothing todo?
+  }
   
   @Override
   public boolean equals(Object obj) {
