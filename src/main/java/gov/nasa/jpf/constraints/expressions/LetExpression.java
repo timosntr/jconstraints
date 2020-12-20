@@ -83,6 +83,12 @@ public class LetExpression extends EqualityExpression {
   }
 
   @Override
+  public void collectBoundVariables(Collection<? super Variable<?>> variables) {
+      Expression<Boolean> flattened = this.flattenLetExpression();
+      flattened.collectBoundVariables(variables);
+  }
+
+  @Override
   public <R, D> R accept(ExpressionVisitor<R, D> visitor, D data) {
     /* TODO: This is not a universal valid implementation, I guess.
      *

@@ -177,4 +177,9 @@ public class FunctionExpression<T> extends AbstractExpression<T> {
     return new FunctionExpression(f, args);
   }
 
+  @Override
+  public void collectBoundVariables(Collection<? super Variable<?>> variables) {
+    for(Expression<?> a : args)
+      a.collectBoundVariables(variables);
+  }
 }

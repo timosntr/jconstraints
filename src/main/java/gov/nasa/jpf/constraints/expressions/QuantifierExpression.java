@@ -15,6 +15,7 @@
  */
 package gov.nasa.jpf.constraints.expressions;
 
+import com.google.common.base.Function;
 import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.ExpressionVisitor;
 import gov.nasa.jpf.constraints.api.Valuation;
@@ -153,8 +154,15 @@ public class QuantifierExpression extends AbstractBoolExpression {
         boundOnly.add(v);
       }
     }
+
     body.collectFreeVariables(variables);
     variables.removeAll(boundOnly);
+  }
+
+  @Override
+  public void collectBoundVariables(Collection<? super Variable<?>> variables) {
+    body.collectBoundVariables(variables);
+    variables.addAll(this.getBoundVariables());
   }
 
   @Override
