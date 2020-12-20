@@ -4,9 +4,12 @@ import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Valuation;
 import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.*;
+import gov.nasa.jpf.constraints.expressions.functions.Function;
+import gov.nasa.jpf.constraints.expressions.functions.FunctionExpression;
 import gov.nasa.jpf.constraints.types.BuiltinTypes;
 import gov.nasa.jpf.constraints.util.ExpressionUtil;
 import org.testng.annotations.Test;
+
 
 import java.util.ArrayList;
 import java.util.List;
@@ -172,17 +175,21 @@ public class NegatingTest {
     }
 
     @Test(groups = {"normalization"})
-    //ToDo: andere Möglichkeit, boolschen Variablen einen Wert zuzuweisen? Top und Bottom?
     public void constantTest1(){
         Constant<Boolean> b = Constant.create(BuiltinTypes.BOOL, true);
         Variable<Boolean> v = Variable.create(BuiltinTypes.BOOL, "var");
         Expression<Boolean> expr = PropositionalCompound.create(v, LogicalOperator.EQUIV, b);
         Expression<Boolean> neg = Negation.create(expr);
+        Expression<Boolean> expr2 = PropositionalCompound.create(v, LogicalOperator.EQUIV, ExpressionUtil.TRUE);
+        Expression<Boolean> neg2 = Negation.create(expr2);
 
         Expression<Boolean> nnf = (Expression<Boolean>) neg.accept(NegatingVisitor.getInstance(), false);
         Expression<Boolean> result = PropositionalCompound.create(v, LogicalOperator.XOR, b);
 
         assertEquals(nnf, result);
+
+        Expression<Boolean> nnf2 = (Expression<Boolean>) neg2.accept(NegatingVisitor.getInstance(), false);
+        assertEquals(nnf2, result);
     }
 
     @Test(groups = {"normalization"})
@@ -212,6 +219,53 @@ public class NegatingTest {
         assertTrue(b1.evaluate(val));
     }
 
-    //ToDo: Tests for BitvectorExpression (BitvectorOperator flip),
-    //ToDo: BitvectorNegation (?), LetExpression
+    @Test(groups = {"normalization"})
+    public void bitvectorTest(){
+        NumericCompound computation1 =
+                NumericCompound.create(x, NumericOperator.MUL, Constant.create(BuiltinTypes.SINT32, 2));
+        BitvectorExpression bvAnd =
+                BitvectorExpression.create(computation1, BitvectorOperator.AND, Constant.create(BuiltinTypes.SINT32, 3));
+        Expression<Boolean> neg = Negation.create(bvAnd);
+
+        Expression<Boolean> nnf = (Expression<Boolean>) neg.accept(NegatingVisitor.getInstance(), false);
+        Expression<Boolean> expected = BitvectorExpression.create(computation1, BitvectorOperator.OR, Constant.create(BuiltinTypes.SINT32, 3));
+
+        assertEquals(nnf, expected);
+    }
+
+    @Test(groups = {"normalization"})
+    public void letExpressionTest(){
+        Variable x1 = Variable.create(BuiltinTypes.SINT32, "x1");
+        Variable x2 = Variable.create(BuiltinTypes.SINT32, "x2");
+        Constant c2 = Constant.create(BuiltinTypes.SINT32, 2);
+        Constant c4 = Constant.create(BuiltinTypes.SINT32, 4);
+        NumericBooleanExpression partA = NumericBooleanExpression.create(x1, NumericComparator.LE, c4);
+        NumericCompound replacement = NumericCompound.create(x2, NumericOperator.PLUS, c2);
+
+        Expression<Boolean> neg = Negation.create(LetExpression.create(x1, replacement, partA));
+
+        Expression expected = NumericBooleanExpression.create(replacement, NumericComparator.GT, c4);
+
+        Expression<Boolean> nnf = (Expression<Boolean>) neg.accept(NegatingVisitor.getInstance(), false);
+
+        assertEquals(nnf, expected);
+    }
+
+    //ToDo: Semantics of FunctionalExpression (Expression[])?
+    @Test(groups = {"normalization"})
+    public void functionTest(){
+        // f (Int) Int
+        Function f = Function.create("f", BuiltinTypes.SINT32, BuiltinTypes.SINT32);
+        Variable v[] = new Variable[f.getArity()];
+        for (int i=0; i<v.length; i++) {
+            v[i] = Variable.create(BuiltinTypes.SINT32, "v");
+        }
+        FunctionExpression expr = FunctionExpression.create(f, v);
+        Expression<Boolean> neg = Negation.create(expr);
+
+        Expression<Boolean> nnf = (Expression<Boolean>) neg.accept(NegatingVisitor.getInstance(), false);
+
+        assertEquals(nnf, neg);
+    }
+
 }

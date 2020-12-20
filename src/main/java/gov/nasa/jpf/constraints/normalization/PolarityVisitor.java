@@ -6,6 +6,7 @@ import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
 
 import java.util.List;
 
+//ToDo: evtl entfernen?
 public class PolarityVisitor extends DuplicatingVisitor<List<Pair>> {
 
     private static final gov.nasa.jpf.constraints.normalization.PolarityVisitor INSTANCE = new gov.nasa.jpf.constraints.normalization.PolarityVisitor();

@@ -19,9 +19,9 @@ import com.google.common.base.Function;
 import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
-
+//ToDo: evtl entfernen
 public class ReplaceVarVisitor extends
-        DuplicatingVisitor<Function<String, String>> {
+        DuplicatingVisitor<Function<Expression, Expression>> {
   
   private static final ReplaceVarVisitor INSTANCE = new ReplaceVarVisitor();
   
@@ -29,17 +29,14 @@ public class ReplaceVarVisitor extends
     return INSTANCE;
   }
 
-  /* (non-Javadoc)
-   * @see gov.nasa.jpf.constraints.expressions.AbstractExpressionVisitor#visit(gov.nasa.jpf.constraints.api.Variable, java.lang.Object)
-   */
   @Override
-  public <E> Expression<?> visit(Variable<E> v, Function<String, String> data) {
-    String newName = data.apply(v.getName());
-    return Variable.create(v.getType(), newName);
+  public <E> Expression<?> visit(Variable<E> v, Function<Expression, Expression> data) {
+    Expression newExpression = data.apply(v);
+    return newExpression;
   }
   
-  public <T> Expression<T> apply(Expression<T> expr, Function<String,String> rename) {
-    return visit(expr, rename).requireAs(expr.getType());
+  public <T> Expression<T> apply(Expression<T> expr, Function<Expression, Expression> replace) {
+    return visit(expr, replace).requireAs(expr.getType());
   }
 
 }
