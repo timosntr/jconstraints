@@ -161,8 +161,8 @@ public class QuantifierExpression extends AbstractBoolExpression {
 
   @Override
   public void collectBoundVariables(Collection<? super Variable<?>> variables) {
-    body.collectBoundVariables(variables);
     variables.addAll(this.getBoundVariables());
+    body.collectBoundVariables(variables);
   }
 
   @Override
