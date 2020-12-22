@@ -199,11 +199,12 @@ public class NegatingVisitor extends
     }
 
     @Override
+    //should be unnecessary after the LetExpressionRemover
     public Expression<?> visit(LetExpression expr, Boolean shouldNegate) {
 
-        List<Variable> variables = expr.getParameters();
-        Map<Variable, Expression> values = expr.getParameterValues();
-        Expression mainValue = expr.getMainValue();
+        //List<Variable> variables = expr.getParameters();
+        //Map<Variable, Expression> values = expr.getParameterValues();
+        //Expression mainValue = expr.getMainValue();
 
         //option1: without flattening
         /*if(shouldNegate){

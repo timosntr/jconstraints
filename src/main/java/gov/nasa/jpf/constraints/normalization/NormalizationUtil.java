@@ -21,15 +21,18 @@ public class NormalizationUtil {
     //ToDo: (optional) relabel
 
     public static <E> Expression<E> createCNF(Expression<E> e) {
-        Expression cnf = e.accept(ConjunctionCreatorVisitor.getInstance(), null);
+        Expression nnf = pushNegation(e);
+        //ToDo: Skolemization, if quanfifiers are present
+        Expression cnf = (Expression) nnf.accept(ConjunctionCreatorVisitor.getInstance(), null);
         return cnf;
     }
 
     public static <E> Expression<E> pushNegation(Expression<E> e) {
-        Expression noEquivalence = eliminateEquivalence(e);
+
+        Expression noLet = eliminateLetExpressions(e);
+        Expression noEquivalence = eliminateEquivalence(noLet);
         Expression noImplication = eliminateImplication(noEquivalence);
         Expression noXOR = eliminateXOR(noImplication);
-        //optional
         Expression noIte = eliminateIfThenElse(noXOR);
 
         Expression nnf = (Expression) noIte.accept(NegatingVisitor.getInstance(), false);
@@ -46,6 +49,11 @@ public class NormalizationUtil {
         return noIfThenElse;
     }
 
+    public static <E> Expression<E> eliminateLetExpressions(Expression<E> e) {
+        Expression noLet = e.accept(LetExpressionRemoverVisitor.getInstance(), null);
+        return noLet;
+    }
+
     public static <E> Expression<E> eliminateImplication(Expression<E> e) {
         Expression noImplication = e.accept(ImplicationRemoverVisitor.getInstance(), null);
         return noImplication;
@@ -56,11 +64,47 @@ public class NormalizationUtil {
         return noXOR;
     }
 
+    //Methods for handling of quantifiers
     public static <E> Expression<E> renameAllBoundVars(Expression<E> e) {
         Expression renamed = e.accept(RenameBoundVarVisitor.getInstance(), null);
         return renamed;
     }
 
+    public static Function<String, String> renameBoundVariables(QuantifierExpression q, int id, Collection<Variable<?>> freeVars) {
+
+        //UUID id = UUID.randomUUID();
+        List<? extends Variable<?>> boundVariables = q.getBoundVariables();
+        HashMap<String, String> mappingOfNames = new HashMap<>();
+        if(boundVariables != null){
+            for(Variable v : boundVariables){
+                String oldName = v.getName();
+                String newName = "QF." + id + "." + oldName;
+                while(nameClashWithFreeVars(newName, freeVars)){
+                    id++;
+                    newName = "QF." + id + "." + oldName;
+                }
+                mappingOfNames.put(oldName, newName);
+            }
+            return (vName) -> { return mappingOfNames.get(vName); };
+        } else {
+            throw new UnsupportedOperationException("No bound variables found.");
+        }
+    }
+
+    public static boolean nameClashWithFreeVars(String name, Collection<Variable<?>> freeVars) {
+
+        if(freeVars != null) {
+            for (Variable v : freeVars) {
+                String freeVarName = v.getName();
+                if(freeVarName.equals(name)){
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    //checking methods
     //ToDo: decide whether check here or use the separate visitor
     public static boolean quantifierCheck(Expression<?> expr){
         if(expr instanceof QuantifierExpression){
@@ -102,40 +146,6 @@ public class NormalizationUtil {
         for(Expression i : exprChildren){
             if(ifThenElseCheck(i)){
                 return true;
-            }
-        }
-        return false;
-    }
-
-    public static Function<String, String> renameBoundVariables(QuantifierExpression q, int id, Collection<Variable<?>> freeVars) {
-
-        //UUID id = UUID.randomUUID();
-        List<? extends Variable<?>> boundVariables = q.getBoundVariables();
-        HashMap<String, String> mappingOfNames = new HashMap<>();
-        if(boundVariables != null){
-            for(Variable v : boundVariables){
-                String oldName = v.getName();
-                String newName = "QF." + id + "." + oldName;
-                while(nameClashWithFreeVars(newName, freeVars)){
-                    id++;
-                    newName = "QF." + id + "." + oldName;
-                }
-                mappingOfNames.put(oldName, newName);
-            }
-            return (vName) -> { return mappingOfNames.get(vName); };
-        } else {
-            throw new UnsupportedOperationException("No bound variables found.");
-        }
-    }
-
-    public static boolean nameClashWithFreeVars(String name, Collection<Variable<?>> freeVars) {
-
-        if(freeVars != null) {
-            for (Variable v : freeVars) {
-                String freeVarName = v.getName();
-                if(freeVarName.equals(name)){
-                    return true;
-                }
             }
         }
         return false;

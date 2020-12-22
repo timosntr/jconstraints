@@ -98,11 +98,10 @@ public class LetExpression extends EqualityExpression {
     return visitor.visit(this, data);
   }
 
-  @Override
-  public Expression<?>[] getChildren() {
-    throw new UnsupportedOperationException(
-        "It is not totally cleare, what is a child in a LetExpression.");
-  }
+    @Override
+    public Expression<?>[] getChildren() {
+        throw new UnsupportedOperationException("It is not totally clear, what is a child in a LetExpression.");
+    }
 
   @Override
   public Expression<?> duplicate(Expression<?>[] newChildren) {

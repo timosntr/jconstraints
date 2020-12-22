@@ -10,33 +10,36 @@ import static org.testng.Assert.assertEquals;
 
 public class LetExpressionRemoverTest {
 
-    Variable<Boolean> b = Variable.create(BuiltinTypes.BOOL, "b");
-    Variable<Integer> x = Variable.create(BuiltinTypes.SINT32, "x");
-    Constant<Integer> c1 = Constant.create(BuiltinTypes.SINT32, 1);
-    Constant<Integer> c2 = Constant.create(BuiltinTypes.SINT32, 2);
-    Expression e1 = NumericBooleanExpression.create(x, NumericComparator.EQ, c1);
-    Expression e2 = NumericBooleanExpression.create(x, NumericComparator.EQ, c2);
+    Variable x1 = Variable.create(BuiltinTypes.SINT32, "x1");
+    Variable x2 = Variable.create(BuiltinTypes.SINT32, "x2");
+    Constant c2 = Constant.create(BuiltinTypes.SINT32, 2);
+    Constant c4 = Constant.create(BuiltinTypes.SINT32, 4);
+    NumericBooleanExpression partA = NumericBooleanExpression.create(x1, NumericComparator.LE, c4);
+    NumericBooleanExpression partB = NumericBooleanExpression.create(x2, NumericComparator.GE, c2);
+    NumericCompound replacementA = NumericCompound.create(x2, NumericOperator.PLUS, c2);
+    NumericCompound replacementB = NumericCompound.create(x2, NumericOperator.MINUS, c2);
 
-    Expression iteExpression = IfThenElse.create(b, e1, e2);
-    Expression first = PropositionalCompound.create(Negation.create(b), LogicalOperator.OR, e1);
-    Expression second = PropositionalCompound.create(b, LogicalOperator.OR, e2);
-    Expression iteFree = PropositionalCompound.create(first, LogicalOperator.AND, second);
+    Expression<Boolean> letExpression = LetExpression.create(x1, replacementA, partA);
+    Expression letFree = NumericBooleanExpression.create(replacementA, NumericComparator.LE, c4);
+    Expression<Boolean> nestedLet = PropositionalCompound.create(
+            LetExpression.create(x2, replacementB, partB), LogicalOperator.AND, letExpression);
+    Expression letFree2 = PropositionalCompound.create(
+            NumericBooleanExpression.create(replacementB, NumericComparator.GE, c2), LogicalOperator.AND, letFree);
 
-    Expression nestedIte = PropositionalCompound.create(e1, LogicalOperator.IMPLY, iteExpression);
-    Expression iteFree2 = PropositionalCompound.create(e1, LogicalOperator.IMPLY, iteFree);
+
 
     @Test(groups = {"normalization"})
-    public void ifThenElseTest() {
-        Expression<Boolean> result = (Expression<Boolean>) iteExpression.accept(IfThenElseRemoverVisitor.getInstance(), null);
+    public void letTest() {
+        Expression<Boolean> result = (Expression<Boolean>) letExpression.accept(LetExpressionRemoverVisitor.getInstance(), null);
 
-        assertEquals(result, iteFree);
+        assertEquals(result, letFree);
     }
 
     @Test(groups = {"normalization"})
-    public void nestedIfThenElseTest() {
-        Expression<Boolean> result = (Expression<Boolean>) nestedIte.accept(IfThenElseRemoverVisitor.getInstance(), null);
+    public void nestedLetTest() {
+        Expression<Boolean> result = (Expression<Boolean>) nestedLet.accept(LetExpressionRemoverVisitor.getInstance(), null);
 
-        assertEquals(result, iteFree2);
+        assertEquals(result, letFree2);
     }
 
 }
