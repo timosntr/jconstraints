@@ -251,7 +251,7 @@ public class NegatingTest {
         assertEquals(nnf, expected);
     }
 
-    //ToDo: Semantics of FunctionalExpression (Expression[])?
+
     @Test(groups = {"normalization"})
     public void functionTest(){
         // f (Int) Int

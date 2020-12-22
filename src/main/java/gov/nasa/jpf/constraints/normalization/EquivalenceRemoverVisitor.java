@@ -1,10 +1,7 @@
 package gov.nasa.jpf.constraints.normalization;
 
 import gov.nasa.jpf.constraints.api.Expression;
-import gov.nasa.jpf.constraints.expressions.LogicalOperator;
-import gov.nasa.jpf.constraints.expressions.Negation;
-import gov.nasa.jpf.constraints.expressions.PropositionalCompound;
-import gov.nasa.jpf.constraints.expressions.QuantifierExpression;
+import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
 
 public class EquivalenceRemoverVisitor extends
@@ -39,5 +36,11 @@ public class EquivalenceRemoverVisitor extends
                 visit(right, data));
 
         return visitedExpr;
+    }
+
+    @Override
+    //Not needed if LetExpressionRemover is used beforehand
+    public Expression<?> visit(LetExpression let, Void data) {
+        return super.visit(let.flattenLetExpression(), data);
     }
 }

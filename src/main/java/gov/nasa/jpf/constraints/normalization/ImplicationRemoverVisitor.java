@@ -1,6 +1,7 @@
 package gov.nasa.jpf.constraints.normalization;
 
 import gov.nasa.jpf.constraints.api.Expression;
+import gov.nasa.jpf.constraints.expressions.LetExpression;
 import gov.nasa.jpf.constraints.expressions.LogicalOperator;
 import gov.nasa.jpf.constraints.expressions.Negation;
 import gov.nasa.jpf.constraints.expressions.PropositionalCompound;
@@ -36,5 +37,11 @@ public class ImplicationRemoverVisitor extends
                 visit(right, data));
 
         return visitedExpr;
+    }
+
+    @Override
+    //Not needed if LetExpressionRemover is used beforehand
+    public Expression<?> visit(LetExpression let, Void data) {
+        return super.visit(let.flattenLetExpression(), data);
     }
 }
