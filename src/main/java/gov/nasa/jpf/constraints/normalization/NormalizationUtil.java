@@ -23,8 +23,13 @@ public class NormalizationUtil {
     public static <E> Expression<E> createCNF(Expression<E> e) {
         Expression nnf = pushNegation(e);
         //ToDo: Skolemization, if quanfifiers are present
-        Expression cnf = (Expression) nnf.accept(ConjunctionCreatorVisitor.getInstance(), null);
-        return cnf;
+        return ConjunctionCreatorVisitor.getInstance().apply(nnf, null);
+    }
+
+    public static <E> Expression<E> createDNF(Expression<E> e) {
+        Expression nnf = pushNegation(e);
+        //ToDo: Skolemization, if quanfifiers are present
+        return DisjunctionCreatorVisitor.getInstance().apply(nnf, null);
     }
 
     public static <E> Expression<E> pushNegation(Expression<E> e) {
@@ -35,39 +40,32 @@ public class NormalizationUtil {
         Expression noXOR = eliminateXOR(noImplication);
         Expression noIte = eliminateIfThenElse(noXOR);
 
-        Expression nnf = (Expression) noIte.accept(NegatingVisitor.getInstance(), false);
-        return nnf;
+        return NegatingVisitor.getInstance().apply(noIte, false);
     }
 
     public static <E> Expression<E> eliminateEquivalence(Expression<E> e) {
-        Expression noEquivalence = e.accept(EquivalenceRemoverVisitor.getInstance(), null);
-        return noEquivalence;
+        return EquivalenceRemoverVisitor.getInstance().apply(e, null);
     }
 
     public static <E> Expression<E> eliminateIfThenElse(Expression<E> e) {
-        Expression noIfThenElse = e.accept(IfThenElseRemoverVisitor.getInstance(), null);
-        return noIfThenElse;
+        return IfThenElseRemoverVisitor.getInstance().apply(e, null);
     }
 
     public static <E> Expression<E> eliminateLetExpressions(Expression<E> e) {
-        Expression noLet = e.accept(LetExpressionRemoverVisitor.getInstance(), null);
-        return noLet;
+        return LetExpressionRemoverVisitor.getInstance().apply(e, null);
     }
 
     public static <E> Expression<E> eliminateImplication(Expression<E> e) {
-        Expression noImplication = e.accept(ImplicationRemoverVisitor.getInstance(), null);
-        return noImplication;
+        return ImplicationRemoverVisitor.getInstance().apply(e, null);
     }
 
     public static <E> Expression<E> eliminateXOR(Expression<E> e) {
-        Expression noXOR = e.accept(XorRemoverVisitor.getInstance(), null);
-        return noXOR;
+        return XorRemoverVisitor.getInstance().apply(e, null);
     }
 
     //Methods for handling of quantifiers
     public static <E> Expression<E> renameAllBoundVars(Expression<E> e) {
-        Expression renamed = e.accept(RenameBoundVarVisitor.getInstance(), null);
-        return renamed;
+        return RenameBoundVarVisitor.getInstance().apply(e, null);
     }
 
     public static Function<String, String> renameBoundVariables(QuantifierExpression q, int id, Collection<Variable<?>> freeVars) {

@@ -32,6 +32,7 @@ public class ConjunctionCreatorTest {
     Expression dis1 = PropositionalCompound.create(e3, LogicalOperator.OR, e4);
     Expression con2 = PropositionalCompound.create(e1, LogicalOperator.AND, e2);
     Expression dis2 = PropositionalCompound.create(e1, LogicalOperator.OR, e2);
+    Expression dis3 = PropositionalCompound.create(e1, LogicalOperator.OR, con2);
 
     Expression disjunction = PropositionalCompound.create(
             PropositionalCompound.create(e3, LogicalOperator.AND, e4),
@@ -159,6 +160,15 @@ public class ConjunctionCreatorTest {
     }
 
     @Test(groups = {"normalization"})
+    //case: (A OR B) OR (C OR D)
+    public void disjunctionNestedTest(){
+        Expression disjunction6 = PropositionalCompound.create(dis1, LogicalOperator.OR, dis3);
+
+        Expression<Boolean> cnf = (Expression<Boolean>) disjunction6.accept(ConjunctionCreatorVisitor.getInstance(), null);
+        System.out.print(cnf);
+    }
+
+    @Test(groups = {"normalization"})
     //case: (A AND B) OR (C OR D)
     public void disjunctionTest7(){
           Expression disjunction7 = PropositionalCompound.create(con1, LogicalOperator.OR, dis1);
@@ -212,9 +222,8 @@ public class ConjunctionCreatorTest {
         bound.add(y);
         Expression quantifiedDisjunction = QuantifierExpression.create(Quantifier.FORALL, bound, disjunction);
         Expression<Boolean> cnf = (Expression<Boolean>) quantifiedDisjunction.accept(ConjunctionCreatorVisitor.getInstance(), null);
-        Expression quantifiedExpected = QuantifierExpression.create(Quantifier.FORALL, bound, expected);
 
-        assertEquals(cnf, quantifiedExpected);
+        assertEquals(cnf, quantifiedDisjunction);
     }*/
 
     @Test(groups = {"normalization"})

@@ -21,26 +21,36 @@ public class EquivalenceRemoverVisitor extends
 
         if(operator.equals(LogicalOperator.EQUIV)){
             Expression<Boolean> partLeft = PropositionalCompound.create(Negation.create((Expression<Boolean>) left), LogicalOperator.OR, right);
-            Expression<Boolean> partRight = PropositionalCompound.create(Negation.create((Expression<Boolean>) right), LogicalOperator.OR, left);
+            Expression<Boolean> partRight = PropositionalCompound.create((Expression<Boolean>) left, LogicalOperator.OR, Negation.create((Expression<Boolean>) right));
             Expression<Boolean> result = PropositionalCompound.create(
                     (Expression<Boolean>) visit(partLeft, data),
                     LogicalOperator.AND,
                     visit(partRight, data));
 
             return result;
+        } else {
+            Expression visitedExpr = PropositionalCompound.create(
+                    (Expression<Boolean>) visit(left, data),
+                    operator,
+                    visit(right, data));
+
+            return visitedExpr;
         }
-
-        Expression visitedExpr = PropositionalCompound.create(
-                (Expression<Boolean>) visit(left, data),
-                operator,
-                visit(right, data));
-
-        return visitedExpr;
     }
 
     @Override
     //Not needed if LetExpressionRemover is used beforehand
     public Expression<?> visit(LetExpression let, Void data) {
         return super.visit(let.flattenLetExpression(), data);
+    }
+
+    @Override
+    //no deeper visit needed here
+    public Expression<?> visit(NumericBooleanExpression n, Void data) {
+        return n;
+    }
+
+    public <T> Expression<T> apply(Expression<T> expr, Void data) {
+        return visit(expr, data).requireAs(expr.getType());
     }
 }

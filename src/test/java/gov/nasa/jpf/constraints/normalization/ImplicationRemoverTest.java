@@ -36,7 +36,7 @@ public class ImplicationRemoverTest {
     @Test(groups = {"normalization"})
     public void implicationRemoverTest() {
         Expression<Boolean> result = (Expression<Boolean>) containsImply.accept(ImplicationRemoverVisitor.getInstance(), null);
-
+        System.out.println(result);
         assertEquals(result, implyFree);
     }
 

@@ -7,13 +7,13 @@ import gov.nasa.jpf.constraints.expressions.functions.FunctionExpression;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
 
 //should be used after removal of equivalences, implications, ifThenElse and XOR
-//negations should be handled ahead of ConjunctionCreator
-public class ConjunctionCreatorVisitor extends
+//negations should be handled ahead of DisjunctionCreator
+public class DisjunctionCreatorVisitor extends
         DuplicatingVisitor<Void> {
 
-    private static final ConjunctionCreatorVisitor INSTANCE = new ConjunctionCreatorVisitor();
+    private static final DisjunctionCreatorVisitor INSTANCE = new DisjunctionCreatorVisitor();
 
-    public static ConjunctionCreatorVisitor getInstance(){
+    public static DisjunctionCreatorVisitor getInstance(){
         return INSTANCE;
     }
 
@@ -39,38 +39,38 @@ public class ConjunctionCreatorVisitor extends
             Expression rightLeft = ((PropositionalCompound) rightChild).getLeft();
             Expression rightRight = ((PropositionalCompound) rightChild).getRight();
 
-            if (operatorIsOR && leftOpIsAND && rightOpIsAND) {
-                //case: (A AND B) OR (C AND D)
+            if (operatorIsAND && leftOpIsOR && rightOpIsOR) {
+                //case: (A OR B) AND (C OR D)
                 Expression result = PropositionalCompound.create(
                         PropositionalCompound.create(
-                                PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightLeft),
-                                LogicalOperator.AND,
-                                PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightRight)),
-                        LogicalOperator.AND,
+                                PropositionalCompound.create(leftLeft, LogicalOperator.AND, rightLeft),
+                                LogicalOperator.OR,
+                                PropositionalCompound.create(leftLeft, LogicalOperator.AND, rightRight)),
+                        LogicalOperator.OR,
                         PropositionalCompound.create(
-                                PropositionalCompound.create(leftRight, LogicalOperator.OR, rightLeft),
-                                LogicalOperator.AND,
-                                PropositionalCompound.create(leftRight, LogicalOperator.OR, rightRight)));
+                                PropositionalCompound.create(leftRight, LogicalOperator.AND, rightLeft),
+                                LogicalOperator.OR,
+                                PropositionalCompound.create(leftRight, LogicalOperator.AND, rightRight)));
                 return result;
 
-            } else if (operatorIsOR && leftOpIsAND && rightOpIsOR) {
-                //case: (A AND B) OR (C OR D)
+            } else if (operatorIsAND && leftOpIsOR && rightOpIsAND) {
+                //case: (A OR B) AND (C AND D)
                 Expression result = PropositionalCompound.create(
-                        PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightChild),
-                        LogicalOperator.AND,
-                        PropositionalCompound.create(leftRight, LogicalOperator.OR, rightChild));
+                        PropositionalCompound.create(leftLeft, LogicalOperator.AND, rightChild),
+                        LogicalOperator.OR,
+                        PropositionalCompound.create(leftRight, LogicalOperator.AND, rightChild));
                 return result;
 
-            } else if (operatorIsOR && leftOpIsOR && rightOpIsAND) {
-                //case: (A OR B) OR (C AND D)
+            } else if (operatorIsAND && leftOpIsAND && rightOpIsOR) {
+                //case: (A AND B) AND (C OR D)
                 Expression result = PropositionalCompound.create(
-                        PropositionalCompound.create(leftChild, LogicalOperator.OR, rightLeft),
-                        LogicalOperator.AND,
-                        PropositionalCompound.create(leftChild, LogicalOperator.OR, rightRight));
+                        PropositionalCompound.create(leftChild, LogicalOperator.AND, rightLeft),
+                        LogicalOperator.OR,
+                        PropositionalCompound.create(leftChild, LogicalOperator.AND, rightRight));
                 return result;
 
-            } else if (operatorIsOR && leftOpIsOR && rightOpIsOR) {
-                //case: (A OR B) OR (C OR D)
+            } else if (operatorIsAND && leftOpIsAND && rightOpIsAND) {
+                //case: (A AND B) AND (C AND D)
                 /*Expression result = PropositionalCompound.create(leftChild, LogicalOperator.OR, rightChild);
                 return result;*/
                 return expr;
@@ -83,16 +83,16 @@ public class ConjunctionCreatorVisitor extends
             Expression leftLeft = ((PropositionalCompound) leftChild).getLeft();
             Expression leftRight = ((PropositionalCompound) leftChild).getRight();
 
-            if (operatorIsOR && leftOpIsAND) {
-                //case: (A AND B) OR (C)
+            if (operatorIsAND && leftOpIsOR) {
+                //case: (A OR B) AND (C)
                 Expression result = PropositionalCompound.create(
-                        PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightChild),
-                        LogicalOperator.AND,
-                        PropositionalCompound.create(leftRight, LogicalOperator.OR, rightChild));
+                        PropositionalCompound.create(leftLeft, LogicalOperator.AND, rightChild),
+                        LogicalOperator.OR,
+                        PropositionalCompound.create(leftRight, LogicalOperator.AND, rightChild));
                 return result;
 
-            } else if (operatorIsOR && leftOpIsOR) {
-                //case: (A OR B) OR (C)
+            } else if (operatorIsAND && leftOpIsAND) {
+                //case: (A AND B) AND (C)
                 /*Expression result = PropositionalCompound.create(leftChild, LogicalOperator.OR, rightChild);
                 return result;*/
                 return expr;
@@ -104,30 +104,30 @@ public class ConjunctionCreatorVisitor extends
             Expression rightLeft = ((PropositionalCompound) rightChild).getLeft();
             Expression rightRight = ((PropositionalCompound) rightChild).getRight();
 
-            if (operatorIsOR && rightOpIsAND) {
-                //case: (A) OR (C AND D)
+            if (operatorIsAND && rightOpIsOR) {
+                //case: (A) AND (C OR D)
                 Expression result = PropositionalCompound.create(
-                        PropositionalCompound.create(leftChild, LogicalOperator.OR, rightLeft),
-                        LogicalOperator.AND,
-                        PropositionalCompound.create(leftChild, LogicalOperator.OR, rightRight));
+                        PropositionalCompound.create(leftChild, LogicalOperator.AND, rightLeft),
+                        LogicalOperator.OR,
+                        PropositionalCompound.create(leftChild, LogicalOperator.AND, rightRight));
                 return result;
 
-            } else if (operatorIsOR && rightOpIsOR) {
-                //case: (A) OR (C OR D)
+            } else if (operatorIsAND && rightOpIsAND) {
+                //case: (A) AND (C AND D)
                 /*Expression result = PropositionalCompound.create(leftChild, LogicalOperator.OR, rightChild);
                 return result;*/
                 return expr;
             }
 
         } else if (!leftIsPropComp && !rightIsPropComp) {
-            //cases: (A) OR (B); (A) AND (B)
+            //cases: (A) AND (B); (A) OR (B)
             if (operatorIsOR || operatorIsAND) {
                 return expr;
             }
         } else {
             throw new UnsupportedOperationException("Remove equivalences, implications, ifThenElse, and XOR, and handle negations first.");
         }
-        //if we are here, there are no conjunctions under disjunctions in the tree (anymore)
+        //if we are here, there are no disjunctions under conjunctions in the tree (anymore)
         Expression result = PropositionalCompound.create(leftChild, operator, rightChild);
         return result;
     }
