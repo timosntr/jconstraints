@@ -38,6 +38,7 @@ public class NegatingVisitor extends
         return expr;
     }
 
+
     @Override
     public Expression<?> visit(PropositionalCompound expr, Boolean shouldNegate) {
         //if shouldNegate is true, a Negation is visited
@@ -46,10 +47,12 @@ public class NegatingVisitor extends
             Expression<Boolean> right = (Expression<Boolean>) expr.getRight();
             LogicalOperator operator = expr.getOperator();
             LogicalOperator negOperator = operator.invert();
-            Expression<Boolean> newLeft;
-            Expression<Boolean> newRight;
+            Expression<Boolean> newLeft = left;
+            Expression<Boolean> newRight = right;
 
-            if((operator.equals(LogicalOperator.EQUIV) || operator.equals(LogicalOperator.XOR)) &&
+            //if an equivalence or an xor is negated, only the operator is inverted
+            //otherwise not only the operator has to be inverted but also the children have to bei negated
+            /*if((operator.equals(LogicalOperator.EQUIV) || operator.equals(LogicalOperator.XOR)) &&
                     (left instanceof Variable || left instanceof Constant)){
                 newLeft = left;
             } else {
@@ -60,6 +63,20 @@ public class NegatingVisitor extends
                 newRight = right;
             } else {
                 newRight = (Expression<Boolean>) visit(Negation.create(right), false);
+            }*/
+            if(operator.equals(LogicalOperator.EQUIV) || operator.equals(LogicalOperator.XOR)){
+                newLeft = (Expression<Boolean>) visit(left, false);
+            } else {
+                if(left.getType().equals(BuiltinTypes.BOOL)) {
+                    newLeft = (Expression<Boolean>) visit(Negation.create(left), false);
+                }
+            }
+            if(operator.equals(LogicalOperator.EQUIV) || operator.equals(LogicalOperator.XOR)) {
+                newRight = (Expression<Boolean>) visit(right, false);
+            } else {
+                if(right.getType().equals(BuiltinTypes.BOOL)) {
+                    newRight = (Expression<Boolean>) visit(Negation.create(right), false);
+                }
             }
 
             return PropositionalCompound.create(newLeft, negOperator, newRight);
@@ -86,8 +103,10 @@ public class NegatingVisitor extends
     public Expression visit(Variable var, Boolean shouldNegate){
 
         if(shouldNegate){
-            Negation negated = Negation.create(var);
-            return negated;
+            if (var.getType().equals(BuiltinTypes.BOOL)) {
+                Negation negated = Negation.create(var);
+                return negated;
+            }
         }
         return var;
     }
@@ -164,7 +183,7 @@ public class NegatingVisitor extends
     @Override
     public <E> Expression<?> visit(Constant<E> c, Boolean shouldNegate) {
         if(shouldNegate){
-            if (c.getType() instanceof BuiltinTypes.BoolType) {
+            if (c.getType().equals(BuiltinTypes.BOOL)) {
                 return Negation.create((Expression<Boolean>) c);
             }
         }
@@ -216,7 +235,9 @@ public class NegatingVisitor extends
         //option2: with flattening
         Expression flattened = expr.flattenLetExpression();
         if(shouldNegate){
-            return visit(Negation.create(flattened), false);
+            if(flattened.getType().equals(BuiltinTypes.BOOL)){
+                return visit(Negation.create(flattened), false);
+            }
         }
         return visit(flattened, false);
     }
@@ -227,5 +248,9 @@ public class NegatingVisitor extends
     @Override
     protected <E> Expression<?> defaultVisit(Expression<E> expression, Boolean shouldNegate) {
         return super.defaultVisit(expression, shouldNegate);
+    }
+
+    public <T> Expression<T> apply(Expression<T> expr, Boolean shouldNegate) {
+        return visit(expr, shouldNegate).requireAs(expr.getType());
     }
 }

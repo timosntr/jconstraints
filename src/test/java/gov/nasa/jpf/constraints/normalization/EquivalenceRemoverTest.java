@@ -30,7 +30,7 @@ public class EquivalenceRemoverTest {
         Expression<Boolean> equivFree = PropositionalCompound.create(
                 PropositionalCompound.create(negP1, LogicalOperator.OR, p2),
                 LogicalOperator.AND,
-                PropositionalCompound.create(negP2, LogicalOperator.OR, p1));
+                PropositionalCompound.create(p1, LogicalOperator.OR, negP2));
 
         Expression<Boolean> equivFree2 = PropositionalCompound.create(
                 p1,
@@ -38,7 +38,7 @@ public class EquivalenceRemoverTest {
                 PropositionalCompound.create(
                         PropositionalCompound.create(negE1, LogicalOperator.OR, e2),
                         LogicalOperator.AND,
-                        PropositionalCompound.create(negE2, LogicalOperator.OR, e1)));
+                        PropositionalCompound.create(e1, LogicalOperator.OR, negE2)));
 
 
     @Test(groups = {"normalization"})

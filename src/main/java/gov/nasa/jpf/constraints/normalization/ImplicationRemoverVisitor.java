@@ -44,4 +44,8 @@ public class ImplicationRemoverVisitor extends
     public Expression<?> visit(LetExpression let, Void data) {
         return super.visit(let.flattenLetExpression(), data);
     }
+
+    public <T> Expression<T> apply(Expression<T> expr, Void data) {
+        return visit(expr, data).requireAs(expr.getType());
+    }
 }
