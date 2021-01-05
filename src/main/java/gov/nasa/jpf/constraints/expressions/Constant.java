@@ -84,33 +84,11 @@ public class Constant<E> extends AbstractExpression<E> {
     // do nothing
   }
 
-	@Override
-	public void collectBoundVariables(Collection<? super Variable<?>> variables) {
-		// do nothing
-	}
+  @Override
+  public void collectBoundVariables(Collection<? super Variable<?>> variables) {
+      // do nothing
+  }
 
-	@Override
-	public void collectBoundVariables(Collection<? super Variable<?>> variables) {
-		// do nothing
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (obj == null) {
-			return false;
-		}
-		if (getClass() != obj.getClass()) {
-			return false;
-		}
-		final Constant<?> other = (Constant<?>) obj;
-		if (this.type != other.type && (this.type == null || !this.type.equals(other.type))) {
-			return false;
-		}
-		if ((this.value == null) ? (other.value != null) : !this.value.equals(other.value)) {
-			return false;
-		}
-		return true;
-	}
   @Override
   public boolean equals(Object obj) {
     if (obj == null) {
