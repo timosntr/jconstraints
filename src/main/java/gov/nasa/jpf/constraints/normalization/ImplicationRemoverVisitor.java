@@ -1,10 +1,7 @@
 package gov.nasa.jpf.constraints.normalization;
 
 import gov.nasa.jpf.constraints.api.Expression;
-import gov.nasa.jpf.constraints.expressions.LetExpression;
-import gov.nasa.jpf.constraints.expressions.LogicalOperator;
-import gov.nasa.jpf.constraints.expressions.Negation;
-import gov.nasa.jpf.constraints.expressions.PropositionalCompound;
+import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
 
 public class ImplicationRemoverVisitor extends
@@ -30,19 +27,25 @@ public class ImplicationRemoverVisitor extends
                     visit(right, data));
 
             return result;
-        }
-        Expression visitedExpr = PropositionalCompound.create(
-                (Expression<Boolean>) visit(left, data),
-                operator,
-                visit(right, data));
+        } else {
+            Expression visitedExpr = PropositionalCompound.create(
+                    (Expression<Boolean>) visit(left, data),
+                    operator,
+                    visit(right, data));
 
-        return visitedExpr;
+            return visitedExpr;
+        }
     }
 
     @Override
     //Not needed if LetExpressionRemover is used beforehand
     public Expression<?> visit(LetExpression let, Void data) {
-        return super.visit(let.flattenLetExpression(), data);
+        return visit(let.flattenLetExpression(), data);
+    }
+
+    //no deeper visit needed here
+    public Expression<?> visit(NumericBooleanExpression n, Void data) {
+        return n;
     }
 
     public <T> Expression<T> apply(Expression<T> expr, Void data) {
