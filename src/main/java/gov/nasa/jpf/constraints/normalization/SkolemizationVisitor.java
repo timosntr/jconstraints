@@ -22,7 +22,7 @@ public class MiniScopingVisitor extends
 
     @Override
     public Expression<?> visit(QuantifierExpression q, Void data) {
-
+        //ToDo
         Quantifier quantifier = q.getQuantifier();
         List<? extends Variable> bound = q.getBoundVariables();
         Expression body = q.getBody();

@@ -7,9 +7,6 @@ import gov.nasa.jpf.constraints.types.BuiltinTypes;
 import gov.nasa.jpf.constraints.util.ExpressionUtil;
 import org.testng.annotations.Test;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 
@@ -29,7 +26,7 @@ public class MiniScopingTest {
     Expression e4 = NumericBooleanExpression.create(y, NumericComparator.EQ, c2);
 
     Expression con1 = PropositionalCompound.create(e3, LogicalOperator.AND, e4);
-    Expression dis1 = PropositionalCompound.create(e2, LogicalOperator.OR, e4);
+    Expression dis1 = PropositionalCompound.create(e3, LogicalOperator.OR, e4);
     Expression con2 = PropositionalCompound.create(e1, LogicalOperator.AND, e2);
     Expression dis2 = PropositionalCompound.create(e1, LogicalOperator.OR, e2);
     Expression dis3 = PropositionalCompound.create(e1, LogicalOperator.OR, con2);
@@ -47,48 +44,25 @@ public class MiniScopingTest {
     @Test(groups = {"normalization"})
     //free vars left
     public void leftTest(){
-        List<Variable<?>> bound = new ArrayList<>();
-        bound.add(x);
-        Expression q = ExpressionUtil.or(e1,
-                QuantifierExpression.create(Quantifier.FORALL, bound, ExpressionUtil.or(e2, e1)));
 
-        Expression<Boolean> minimized = (Expression<Boolean>) q.accept(MiniScopingVisitor.getInstance(), null);
-        System.out.println(minimized);
     }
 
     @Test(groups = {"normalization"})
     //free vars right
     public void rightTest(){
-        List<Variable<?>> bound = new ArrayList<>();
-        bound.add(x);
-        Expression q = ExpressionUtil.or(QuantifierExpression.create(Quantifier.FORALL, bound, ExpressionUtil.and(e1, e2)), dis1);
 
-        Expression<Boolean> minimized = (Expression<Boolean>) q.accept(MiniScopingVisitor.getInstance(), null);
-        System.out.println(minimized);
     }
 
     @Test(groups = {"normalization"})
     //free vars in both
     public void existsTest(){
-        List<Variable<?>> bound = new ArrayList<>();
-        bound.add(x);
-        Expression q = QuantifierExpression.create(Quantifier.EXISTS, bound, ExpressionUtil.and(ExpressionUtil.or(e1, e2), con1));
 
-        Expression<Boolean> minimized = (Expression<Boolean>) q.accept(MiniScopingVisitor.getInstance(), null);
-        System.out.println(q);
-        System.out.println(minimized);
     }
 
     @Test(groups = {"normalization"})
     //free vars in both
     public void forallTest(){
-        List<Variable<?>> bound = new ArrayList<>();
-        bound.add(x);
-        Expression q = QuantifierExpression.create(Quantifier.FORALL, bound, ExpressionUtil.or(ExpressionUtil.and(e1, e2), con1));
 
-        Expression<Boolean> minimized = (Expression<Boolean>) q.accept(MiniScopingVisitor.getInstance(), null);
-        System.out.println(q);
-        System.out.println(minimized);
     }
 
 }
