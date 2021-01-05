@@ -5,8 +5,8 @@ import gov.nasa.jpf.constraints.expressions.Quantifier;
 import gov.nasa.jpf.constraints.expressions.QuantifierExpression;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
 
-//Removing of Quantifier.FORALL after Skolemization
-//Quantifiers have to be handled ahead of ConjunctionCreator
+//Existentional closure for free Variables after MiniScoping and before Renaming
+//has to be done before Skolemization
 public class ExistentionalClosureVisitor extends
         DuplicatingVisitor<Void> {
 

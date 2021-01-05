@@ -2,128 +2,148 @@ package gov.nasa.jpf.constraints.normalization;
 
 import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Variable;
-import gov.nasa.jpf.constraints.expressions.*;
+import gov.nasa.jpf.constraints.expressions.LogicalOperator;
+import gov.nasa.jpf.constraints.expressions.PropositionalCompound;
+import gov.nasa.jpf.constraints.expressions.Quantifier;
+import gov.nasa.jpf.constraints.expressions.QuantifierExpression;
+import gov.nasa.jpf.constraints.expressions.functions.Function;
 import gov.nasa.jpf.constraints.expressions.functions.FunctionExpression;
+import gov.nasa.jpf.constraints.types.BuiltinTypes;
+import gov.nasa.jpf.constraints.types.Type;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 //Creation of an anti prenex form (scope of Quantifiers should be minimized)
 //Quantifiers have to be handled ahead of ConjunctionCreator
-public class MiniScopingVisitor extends
-        DuplicatingVisitor<Void> {
+public class SkolemizationVisitor extends
+        DuplicatingVisitor<List<Variable<?>>> {
 
-    private static final MiniScopingVisitor INSTANCE = new MiniScopingVisitor();
+    private static final SkolemizationVisitor INSTANCE = new SkolemizationVisitor();
 
-    public static MiniScopingVisitor getInstance(){
+    public static SkolemizationVisitor getInstance(){
         return INSTANCE;
     }
 
+    private int id = 0;
+    HashMap<String, Expression> toSkolemize = new HashMap<>();
+    Collection<String> functionNames;
+    boolean firstVisit = true;
+    boolean inQuantifierExpression = false;
+
     @Override
-    public Expression<?> visit(QuantifierExpression q, Void data) {
-        //ToDo
+    public Expression<?> visit(QuantifierExpression q, List<Variable<?>> data) {
+        List<Variable<?>> freeVars = new ArrayList<>();
+        if(firstVisit){
+            functionNames = NormalizationUtil.collectFunctionNames(q);
+            q.collectFreeVariables(freeVars);
+            firstVisit = false;
+        }
         Quantifier quantifier = q.getQuantifier();
-        List<? extends Variable> bound = q.getBoundVariables();
+        List<? extends Variable<?>> bound = q.getBoundVariables();
         Expression body = q.getBody();
-        //if quantified body is not a Propositional Compound, mini scoping is done here
-        //negations have to be pushed beforehand!
-        if(!(body instanceof PropositionalCompound)){
-            return q;
-        }
-        //if we are here, body is a Propositional Compound and there is a possibility of a smaller scope
-        Expression leftChild = ((PropositionalCompound) body).getLeft();
-        Expression rightChild = ((PropositionalCompound) body).getRight();
-        LogicalOperator operator = ((PropositionalCompound) body).getOperator();
+        inQuantifierExpression = true;
 
-        //check if bound variables are only in one child of Propositional Compound
-        ArrayList<Variable> freeLeft = new ArrayList<>();
-        leftChild.collectFreeVariables(freeLeft);
-        boolean boundInFreeLeft = false;
+        //case: FORALL
+        if(quantifier.equals(Quantifier.FORALL)){
+            data.addAll(bound);
+            return QuantifierExpression.create(quantifier, bound, (Expression<Boolean>) visit(body, data));
+        } else {
+            //case: EXISTS
 
-        ArrayList<Variable> freeRight = new ArrayList<>();
-        rightChild.collectFreeVariables(freeRight);
-        boolean boundInFreeRight = false;
-
-        if(freeLeft != null){
-            for(Variable v : bound){
-                for(Variable f : freeLeft){
-                    if(f.equals(v)){
-                        boundInFreeLeft = true;
+            //case: EXISTS not in scope of a FORALL -> new FunctionExpression with arity 0 for each bound var
+            if(data.isEmpty()){
+                for(Variable var : bound){
+                    String name = var.getName();
+                    String nameConstant = "SK.constant." + id + "." + name;
+                    while(NormalizationUtil.nameClashWithFunctions(nameConstant, functionNames)){
+                        id++;
+                        nameConstant = "SK.constant." + id + "." + name;
                     }
+                    Type type = var.getType();
+                    Function f = Function.create(nameConstant, type);
+                    Variable v[] = new Variable[f.getArity()];
+                    FunctionExpression expr = FunctionExpression.create(f, v);
+
+                    toSkolemize.put(name, expr);
+                    functionNames.add(nameConstant);
+                }
+
+            } else {
+                //case: EXISTS in scope of a FORALL -> new FunctionExpression for each bound var
+                for(Variable var : bound){
+                    String name = var.getName();
+                    String nameFunction = "SK.function." + id + "." + name;
+                    while(NormalizationUtil.nameClashWithFunctions(nameFunction, functionNames)){
+                        id++;
+                        nameFunction = "SK.function." + id + "." + name;
+                    }
+                    Type outputType = var.getType();
+                    Type<?>[] paramTypes = new Type[data.toArray().length];
+                    for(int i = 0; i < paramTypes.length; i++){
+                        paramTypes[i] = data.get(i).getType();
+                    }
+                    Function f = Function.create(nameFunction, outputType, paramTypes);
+                    Variable v[] = new Variable[f.getArity()];
+                    for (int i=0; i<v.length; i++) {
+                        v[i] = Variable.create(data.get(i).getType(), data.get(i).getName());
+                    }
+                    FunctionExpression expr = FunctionExpression.create(f, v);
+
+                    toSkolemize.put(name, expr);
+                    functionNames.add(nameFunction);
                 }
             }
-        }
 
-        if(freeRight != null){
-            for(Variable v : bound){
-                for(Variable f : freeRight){
-                    if(f.equals(v)){
-                        boundInFreeRight = true;
+            //free Variables are implicitly existentially quantified
+            //could possibly be replaced by ExistentionalClosure
+            if(!freeVars.isEmpty()){
+                for(Variable var : freeVars){
+                    String name = var.getName();
+                    String nameConstant = "SK.f.constant." + id + "." + name;
+                    while(NormalizationUtil.nameClashWithFunctions(nameConstant, functionNames)){
+                        id++;
+                        nameConstant = "SK.f.constant." + id + "." + name;
                     }
+                    Type type = var.getType();
+                    Function f = Function.create(nameConstant, type);
+                    Variable v[] = new Variable[f.getArity()];
+                    FunctionExpression expr = FunctionExpression.create(f, v);
+
+                    toSkolemize.put(name, expr);
+                    functionNames.add(nameConstant);
                 }
             }
-        }
 
-        if(!boundInFreeLeft){
-            //no bound variables in left child of the Propositional Compound
-            Expression newLeft = visit(leftChild, data);
-            Expression newRight = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, rightChild), data);
-            return PropositionalCompound.create(newLeft, operator, newRight);
         }
-
-        if(!boundInFreeRight){
-            //no bound variables in right child of the Propositional Compound
-            Expression newLeft = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, leftChild), data);
-            Expression newRight = visit(rightChild, data);
-            return PropositionalCompound.create(newLeft, operator, newRight);
-        }
-
-        //both children of Propositional Compound contain bound variables
-        if(quantifier == Quantifier.FORALL){
-            if(operator == LogicalOperator.AND){
-                //quantifier can be pushed into the subformulas
-                Expression newLeft = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, leftChild), data);
-                Expression newRight = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, rightChild), data);
-                return PropositionalCompound.create(newLeft, operator, newRight);
-            }
-            if(operator == LogicalOperator.OR){
-                //FORALL is blocked by OR: try to transform body to CNF and visit again
-                Expression result = NormalizationUtil.createCNF(body);
-                if(result instanceof PropositionalCompound){
-                    LogicalOperator newOperator = ((PropositionalCompound) result).getOperator();
-                    if(newOperator == LogicalOperator.AND){
-                        return visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, result));
-                    }
-                }
-            }
-        }
-        if(quantifier == Quantifier.EXISTS){
-            //BUT: Nonnengart et al. suggest not to distribute over disjunctions
-            //"in order to avoid generating unnecessarily many Skolem functions"
-            //ToDo: investigate further and comment this part if necessary
-            if(operator == LogicalOperator.OR){
-                //quantifier can be pushed into the subformulas
-                Expression newLeft = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, leftChild), data);
-                Expression newRight = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, rightChild), data);
-                return PropositionalCompound.create(newLeft, operator, newRight);
-            }
-            if(operator == LogicalOperator.AND){
-                //EXISTS is blocked by AND: try to transform body to DNF and visit again
-                Expression result = NormalizationUtil.createDNF(body);
-                if(result instanceof PropositionalCompound){
-                    LogicalOperator newOperator = ((PropositionalCompound) result).getOperator();
-                    if(newOperator == LogicalOperator.OR){
-                        return visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, result));
-                    }
-                }
-            }
-        }
-        //no other option, I guess
-        return q;
+        return visit(body, data);
     }
 
-    public <T> Expression<T> apply(Expression<T> expr, Void data) {
+    @Override
+    public <E> Expression<?> visit(Variable<E> v, List<Variable<?>> data) {
+        //todo: test if works with variables outside (maybe explicit closing of formula needed)
+        //inQuantifierExpression stays always true after one QuantifierExpression visit;
+        // that might become a problem
+        if(inQuantifierExpression){
+            if(toSkolemize.containsKey(v.getName())){
+                return toSkolemize.get(v.getName());
+            }
+        }
+        return super.visit(v, data);
+    }
+
+    @Override
+    protected <E> Expression<?> defaultVisit(Expression<E> expression, List<Variable<?>> data) {
+        if(firstVisit){
+            functionNames = NormalizationUtil.collectFunctionNames(expression);
+            List<Variable<?>> freeVars = new ArrayList<>();
+            expression.collectFreeVariables(freeVars);
+            firstVisit = false;
+        }
+        return super.defaultVisit(expression, data);
+    }
+
+    public <T> Expression<T> apply(Expression<T> expr, List<Variable<?>> data) {
         return visit(expr, data).requireAs(expr.getType());
     }
 }
