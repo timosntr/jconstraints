@@ -25,7 +25,7 @@ public class MiniScopingVisitor extends
 
         Quantifier quantifier = q.getQuantifier();
         List<? extends Variable> bound = q.getBoundVariables();
-        Expression body = q.getBody();
+        Expression body = visit(q.getBody(), data);
         //if quantified body is not a Propositional Compound, mini scoping is done here
         //negations have to be pushed beforehand!
         if(!(body instanceof PropositionalCompound)){

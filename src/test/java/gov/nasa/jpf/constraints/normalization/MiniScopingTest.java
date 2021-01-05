@@ -91,6 +91,21 @@ public class MiniScopingTest {
         System.out.println(minimized);
     }
 
+    @Test(groups = {"normalization"})
+    //free vars in both
+    public void multipleQuantifierTest(){
+        List<Variable<?>> bound1 = new ArrayList<>();
+        bound1.add(x);
+        List<Variable<?>> bound2 = new ArrayList<>();
+        bound2.add(y);
+        Expression q = QuantifierExpression.create(Quantifier.EXISTS, bound1,
+                QuantifierExpression.create(Quantifier.FORALL, bound2, ExpressionUtil.and(ExpressionUtil.or(e1, e2), con1)));
+
+        Expression<Boolean> minimized = (Expression<Boolean>) q.accept(MiniScopingVisitor.getInstance(), null);
+        System.out.println(q);
+        System.out.println(minimized);
+    }
+
 }
 
 
