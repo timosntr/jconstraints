@@ -36,7 +36,7 @@ public class RenameBoundVarVisitor extends
   }
 
   private boolean nestedQuantifier = false;
-  private int id = 0;
+  private int[] id = {0};
   Collection<Variable<?>> freeVars = new ArrayList<>();
 
   @Override
@@ -47,6 +47,8 @@ public class RenameBoundVarVisitor extends
       String renaming = data.apply(v.getName());
       if(renaming != null){
         newName = data.apply(v.getName());
+      } else {
+        newName = v.getName();
       }
     } else {
       newName = v.getName();
@@ -58,7 +60,7 @@ public class RenameBoundVarVisitor extends
   @Override
   public Expression<?> visit(QuantifierExpression q, Function<String, String> data){
     List<Variable<?>> boundVariables = (List<Variable<?>>) q.getBoundVariables();
-    id++;
+    id[0]++;
     q.collectFreeVariables(freeVars);
 
     if(nestedQuantifier) {
