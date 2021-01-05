@@ -22,12 +22,9 @@ public class ModifiedNegatingVisitor extends
 
     @Override
     public Expression<?> visit(NumericBooleanExpression expr, Boolean shouldNegate){
-
+        //modification for checking the impact of pushing negations completely into logic
         if(shouldNegate){
-            Expression<?> left = expr.getLeft();
-            Expression<?> right = expr.getRight();
-            NumericComparator comparator = expr.getComparator();
-            return NumericBooleanExpression.create(left, comparator.not(), right);
+            return Negation.create(expr);
         }
 
         return expr;

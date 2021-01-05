@@ -9,6 +9,7 @@ import gov.nasa.jpf.constraints.expressions.NumericComparator;
 import gov.nasa.jpf.constraints.expressions.functions.FunctionExpression;
 import gov.nasa.jpf.constraints.types.BuiltinTypes;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
+import gov.nasa.jpf.constraints.util.ExpressionUtil;
 
 
 import java.util.Collection;
@@ -43,8 +44,8 @@ public class NegatingVisitor extends
     public Expression<?> visit(PropositionalCompound expr, Boolean shouldNegate) {
         //if shouldNegate is true, a Negation is visited
         if (shouldNegate) {
-            Expression<Boolean> left = (Expression<Boolean>) expr.getLeft();
-            Expression<Boolean> right = (Expression<Boolean>) expr.getRight();
+            Expression<Boolean> left = expr.getLeft();
+            Expression<Boolean> right = expr.getRight();
             LogicalOperator operator = expr.getOperator();
             LogicalOperator negOperator = operator.invert();
             Expression<Boolean> newLeft = left;
@@ -52,23 +53,13 @@ public class NegatingVisitor extends
 
             //if an equivalence or an xor is negated, only the operator is inverted
             //otherwise not only the operator has to be inverted but also the children have to bei negated
-            /*if((operator.equals(LogicalOperator.EQUIV) || operator.equals(LogicalOperator.XOR)) &&
-                    (left instanceof Variable || left instanceof Constant)){
-                newLeft = left;
-            } else {
-                newLeft = (Expression<Boolean>) visit(Negation.create(left), false);
-            }
-            if((operator.equals(LogicalOperator.EQUIV) || operator.equals(LogicalOperator.XOR)) &&
-                    (right instanceof Variable || right instanceof Constant)) {
-                newRight = right;
-            } else {
-                newRight = (Expression<Boolean>) visit(Negation.create(right), false);
-            }*/
             if(operator.equals(LogicalOperator.EQUIV) || operator.equals(LogicalOperator.XOR)){
                 newLeft = (Expression<Boolean>) visit(left, false);
             } else {
                 if(left.getType().equals(BuiltinTypes.BOOL)) {
                     newLeft = (Expression<Boolean>) visit(Negation.create(left), false);
+                } else {
+                    newLeft = (Expression<Boolean>) visit(left, false);
                 }
             }
             if(operator.equals(LogicalOperator.EQUIV) || operator.equals(LogicalOperator.XOR)) {
@@ -76,6 +67,8 @@ public class NegatingVisitor extends
             } else {
                 if(right.getType().equals(BuiltinTypes.BOOL)) {
                     newRight = (Expression<Boolean>) visit(Negation.create(right), false);
+                } else {
+                    newRight = (Expression<Boolean>) visit(right, false);
                 }
             }
 
@@ -94,9 +87,22 @@ public class NegatingVisitor extends
 
         if(shouldNegate){
             //negation of a negation
-            return visit(expr.getNegated(), false);
+            if(expr.getType().equals(BuiltinTypes.BOOL)){
+                return visit(expr.getNegated(), false);
+            } else {
+                //Todo: not sure about this part;
+                // should be unnecessary as a Negation should always be boolean typed
+                return expr;
+            }
+        } else {
+            if (expr.getType().equals(BuiltinTypes.BOOL)) {
+                return visit(expr.getNegated(), true);
+            } else {
+                //Todo: not sure about this part;
+                // should be unnecessary as a Negation should always be boolean typed
+                return expr;
+            }
         }
-        return visit(expr.getNegated(), true);
     }
 
     @Override
@@ -147,19 +153,20 @@ public class NegatingVisitor extends
     //should be unnecessary after the IfThenElseRemover
     @Override
     public <E> Expression<?> visit(IfThenElse<E> expr, Boolean shouldNegate) {
-        /*Expression ifCond = expr.getIf();
-        Expression thenExpr = expr.getThen();
-        Expression elseExpr = expr.getElse();
-
-        Expression result = PropositionalCompound.create
-                (PropositionalCompound.create(Negation.create(ifCond), LogicalOperator.OR, thenExpr), LogicalOperator.AND, PropositionalCompound.create(ifCond, LogicalOperator.OR, elseExpr));*/
 
         Expression result = expr.flattenIfThenElse();
 
         if(shouldNegate){
-            return visit(Negation.create(result), false);
+            if(result.getType().equals(BuiltinTypes.BOOL)){
+                return visit(Negation.create(result), false);
+            } else {
+                //ToDo: not sure if this is the right solution for IfThenElse with
+                // non-boolean typed children
+                Expression newIte = IfThenElse.create(expr.getIf(), Negation.create((Expression<Boolean>) expr.getThen()), Negation.create((Expression<Boolean>) expr.getElse()));
+                return visit(newIte, false);
+            }
         }
-        return visit(result, false);
+        return visit(expr, false);
     }
 
     @Override
@@ -220,19 +227,6 @@ public class NegatingVisitor extends
     @Override
     //should be unnecessary after the LetExpressionRemover
     public Expression<?> visit(LetExpression expr, Boolean shouldNegate) {
-
-        //List<Variable> variables = expr.getParameters();
-        //Map<Variable, Expression> values = expr.getParameterValues();
-        //Expression mainValue = expr.getMainValue();
-
-        //option1: without flattening
-        /*if(shouldNegate){
-            Expression negatedMain = visit(Negation.create(mainValue));
-            return LetExpression.create(variables, values, negatedMain);
-        }
-        return LetExpression.create(variables, values, visit(mainValue));*/
-
-        //option2: with flattening
         Expression flattened = expr.flattenLetExpression();
         if(shouldNegate){
             if(flattened.getType().equals(BuiltinTypes.BOOL)){
