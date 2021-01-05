@@ -20,6 +20,7 @@ import gov.nasa.jpf.constraints.api.ExpressionVisitor;
 import gov.nasa.jpf.constraints.api.Valuation;
 import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.simplifiers.datastructures.ArithmeticVarReplacements;
+import gov.nasa.jpf.constraints.types.BuiltinTypes;
 import gov.nasa.jpf.constraints.types.Type;
 import gov.nasa.jpf.constraints.util.ExpressionUtil;
 
@@ -187,7 +188,11 @@ public class IfThenElse<E> extends AbstractExpression<E> {
         Expression elseExpr = this.getElse();
 
         Expression flattened = PropositionalCompound.create
-                (PropositionalCompound.create(Negation.create(ifCond), LogicalOperator.OR, thenExpr), LogicalOperator.AND, PropositionalCompound.create(ifCond, LogicalOperator.OR, elseExpr));
+                    (PropositionalCompound.create(
+                            Negation.create(ifCond), LogicalOperator.OR, thenExpr),
+                            LogicalOperator.AND,
+                            PropositionalCompound.create(ifCond, LogicalOperator.OR, elseExpr));
         return flattened;
+
     }
 }
