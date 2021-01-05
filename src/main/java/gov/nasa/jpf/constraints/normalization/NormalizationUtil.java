@@ -7,11 +7,11 @@ import gov.nasa.jpf.constraints.expressions.IfThenElse;
 import gov.nasa.jpf.constraints.expressions.LogicalOperator;
 import gov.nasa.jpf.constraints.expressions.PropositionalCompound;
 import gov.nasa.jpf.constraints.expressions.QuantifierExpression;
+import gov.nasa.jpf.constraints.expressions.functions.FunctionExpression;
+import gov.nasa.jpf.constraints.normalization.experimentalVisitors.ModifiedNegatingVisitor;
+import gov.nasa.jpf.constraints.types.BuiltinTypes;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 public class NormalizationUtil {
 
@@ -23,7 +23,11 @@ public class NormalizationUtil {
     public static <E> Expression<E> createCNF(Expression<E> e) {
         Expression nnf = pushNegation(e);
         //ToDo: Skolemization, if quanfifiers are present
-        return ConjunctionCreatorVisitor.getInstance().apply(nnf, null);
+        if (!nnf.equals(null)) {
+            return ConjunctionCreatorVisitor.getInstance().apply(nnf, null);
+        } else {
+            throw new UnsupportedOperationException("Creation of NNF failed, no CNF created!");
+        }
     }
 
     public static <E> Expression<E> createDNF(Expression<E> e) {
@@ -33,14 +37,59 @@ public class NormalizationUtil {
     }
 
     public static <E> Expression<E> pushNegation(Expression<E> e) {
-
+        //LetExpressions have to be flattened to get children
         Expression noLet = eliminateLetExpressions(e);
-        Expression noEquivalence = eliminateEquivalence(noLet);
-        Expression noImplication = eliminateImplication(noEquivalence);
-        Expression noXOR = eliminateXOR(noImplication);
-        Expression noIte = eliminateIfThenElse(noXOR);
+        if(!noLet.equals(null)) {
+            Expression noEquivalence = eliminateEquivalence(noLet);
+            if (!noEquivalence.equals(null)) {
+                Expression noImplication = eliminateImplication(noEquivalence);
+                if (!noImplication.equals(null)) {
+                    Expression noXOR = eliminateXOR(noImplication);
+                    if (!noXOR.equals(null)) {
+                        Expression noIte = eliminateIfThenElse(noXOR);
+                        if(!noIte.equals(null)){
+                            return NegatingVisitor.getInstance().apply(noIte, false);
+                        } else {
+                            System.out.println("eliminateIfThenElse failed!");
+                            return NegatingVisitor.getInstance().apply(noXOR, false);
+                        }
+                    }
+                    System.out.println("eliminateXOR failed!");
+                }
+                System.out.println("eliminateImplication failed!");
+            }
+            System.out.println("eliminateEquivalence failed!");
+        }
+        //alternativ:
+        //return e;
+        throw new UnsupportedOperationException("Negations were not pushed!");
+    }
 
-        return NegatingVisitor.getInstance().apply(noIte, false);
+    public static <E> Expression<E> pushNegationModified(Expression<E> e) {
+        //LetExpressions have to be flattened to get children
+        Expression noLet = eliminateLetExpressions(e);
+        if(!noLet.equals(null)) {
+            Expression noEquivalence = eliminateEquivalence(noLet);
+            if (!noEquivalence.equals(null)) {
+                Expression noImplication = eliminateImplication(noEquivalence);
+                if (!noImplication.equals(null)) {
+                    Expression noXOR = eliminateXOR(noImplication);
+                    if (!noXOR.equals(null)) {
+                        Expression noIte = eliminateIfThenElse(noXOR);
+                        if(!noIte.equals(null)){
+                            return ModifiedNegatingVisitor.getInstance().apply(noIte, false);
+                        } else {
+                            System.out.println("eliminateIfThenElse failed!");
+                            return NegatingVisitor.getInstance().apply(noXOR, false);
+                        }
+                    }
+                    System.out.println("eliminateXOR failed!");
+                }
+                System.out.println("eliminateImplication failed!");
+            }
+            System.out.println("eliminateEquivalence failed!");
+        }
+        throw new UnsupportedOperationException("Negations were not pushed!");
     }
 
     public static <E> Expression<E> eliminateEquivalence(Expression<E> e) {
@@ -68,7 +117,7 @@ public class NormalizationUtil {
         return RenameBoundVarVisitor.getInstance().apply(e, null);
     }
 
-    public static Function<String, String> renameBoundVariables(QuantifierExpression q, int id, Collection<Variable<?>> freeVars) {
+    public static Function<String, String> renameBoundVariables(QuantifierExpression q, int[] id, Collection<Variable<?>> freeVars) {
 
         //UUID id = UUID.randomUUID();
         List<? extends Variable<?>> boundVariables = q.getBoundVariables();
@@ -76,10 +125,10 @@ public class NormalizationUtil {
         if(boundVariables != null){
             for(Variable v : boundVariables){
                 String oldName = v.getName();
-                String newName = "QF." + id + "." + oldName;
-                while(nameClashWithFreeVars(newName, freeVars)){
-                    id++;
-                    newName = "QF." + id + "." + oldName;
+                String newName = "Q." + id[0] + "." + oldName;
+                while(nameClashWithExistingVars(newName, freeVars)){
+                    id[0]++;
+                    newName = "Q." + id[0] + "." + oldName;
                 }
                 mappingOfNames.put(oldName, newName);
             }
@@ -89,12 +138,38 @@ public class NormalizationUtil {
         }
     }
 
-    public static boolean nameClashWithFreeVars(String name, Collection<Variable<?>> freeVars) {
+    public static Collection<String> collectFunctionNames(Expression<?> expr) {
+        Collection<String> functionNames = new ArrayList<>();
+        if(expr instanceof FunctionExpression){
+            String name = ((FunctionExpression<?>) expr).getFunction().getName();
+            functionNames.add(name);
+        }
 
-        if(freeVars != null) {
-            for (Variable v : freeVars) {
-                String freeVarName = v.getName();
-                if(freeVarName.equals(name)){
+        Expression<?>[] exprChildren = expr.getChildren();
+        for(Expression i : exprChildren){
+            collectFunctionNames(i);
+        }
+        return functionNames;
+    }
+
+    public static boolean nameClashWithExistingVars(String name, Collection<Variable<?>> existingVars) {
+
+        if(existingVars != null) {
+            for (Variable v : existingVars) {
+                String varName = v.getName();
+                if(varName.equals(name)){
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public static boolean nameClashWithFunctions(String name, Collection<String> existingFunctions) {
+
+        if(existingFunctions != null) {
+            for (String fName : existingFunctions) {
+                if(fName.equals(name)){
                     return true;
                 }
             }

@@ -19,7 +19,7 @@ public class RenameBoundVarTest {
 
     Variable<Integer> x = Variable.create(BuiltinTypes.SINT32, "x");
     Variable<Integer> y = Variable.create(BuiltinTypes.SINT32, "y");
-    Variable<Integer> y2 = Variable.create(BuiltinTypes.SINT32, "QF.1.x");
+    Variable<Integer> y2 = Variable.create(BuiltinTypes.SINT32, "Q.1.x");
     Variable<Integer> z = Variable.create(BuiltinTypes.SINT32, "z");
     Constant<Integer> c1 = Constant.create(BuiltinTypes.SINT32, 1);
     Constant<Integer> c2 = Constant.create(BuiltinTypes.SINT32, 2);
@@ -94,6 +94,24 @@ public class RenameBoundVarTest {
                 ExpressionUtil.or(e1, QuantifierExpression.create(Quantifier.FORALL, bound2, ExpressionUtil.and(e1, e2))));
         Expression<Boolean> renamed = (Expression<Boolean>) allBound.accept(RenameBoundVarVisitor.getInstance(), data);
 
+        System.out.println(renamed);
+    }
+
+    @Test(groups = {"normalization"})
+    //todo
+    public void freeVarInOtherPathTest() {
+        Function<String, String> data = null;
+        List<Variable<?>> bound1 = new ArrayList<>();
+        bound1.add(x);
+        List<Variable<?>> bound2 = new ArrayList<>();
+        bound2.add(x);
+        bound2.add(y);
+
+        Expression<Boolean> allBound = ExpressionUtil.and(e2mod, QuantifierExpression.create(Quantifier.EXISTS, bound1,
+                ExpressionUtil.or(e1, QuantifierExpression.create(Quantifier.FORALL, bound2, ExpressionUtil.and(e1, e2)))));
+        Expression<Boolean> renamed = (Expression<Boolean>) allBound.accept(RenameBoundVarVisitor.getInstance(), data);
+
+        System.out.println(allBound);
         System.out.println(renamed);
     }
 }
