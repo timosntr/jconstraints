@@ -1,44 +1,48 @@
 package gov.nasa.jpf.constraints.normalization.smtLibTests;
 
 import gov.nasa.jpf.constraints.api.ConstraintSolver;
+import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Valuation;
+import gov.nasa.jpf.constraints.expressions.LetExpression;
+import gov.nasa.jpf.constraints.normalization.NormalizationUtil;
 import gov.nasa.jpf.constraints.smtlibUtility.SMTProblem;
 import gov.nasa.jpf.constraints.smtlibUtility.parser.SMTLIBParser;
 import gov.nasa.jpf.constraints.smtlibUtility.parser.SMTLIBParserException;
-import gov.nasa.jpf.constraints.solvers.nativez3.NativeZ3Solver;
+import gov.nasa.jpf.constraints.solvers.ConstraintSolverFactory;
 import org.smtlib.IParser;
 import org.testng.annotations.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.List;
 
+import static gov.nasa.jpf.constraints.smtlibUtility.parser.utility.ResourceParsingHelper.parseResourceFile;
 import static org.testng.Assert.assertEquals;
 
 public class QF_LIA_NormalizationTest {
 
     @Test(groups = {"normalization"})
-    //Exception with wrong type
+    //UnsupportedOperationException (BooleanExpression.getChildren)
+    //ToDo: how to run with jar?
     public void nnfTest1() throws IllegalArgumentException, SMTLIBParserException, IParser.ParserException, IOException, URISyntaxException {
-        URL smtFile = QF_LIA_NormalizationTest.class.getClassLoader().getResource("QF_LIA/prp-5-21.smt2");
-        SMTProblem problem = SMTLIBParser.parseSMTProgram(Files.readAllLines(Paths.get(smtFile.toURI()))
-                .stream()
-                .reduce("", (a, b) -> {
-                    return b.startsWith(";") ? a : a + b;
-                }));
+        /*SMTProblem problem = parseResourceFile("QF_LIA/constraint-1635444.smt2");
+        ConstraintSolverFactory factory = ConstraintSolverFactory.getRootFactory();
+        ConstraintSolver constraintSolver = factory.createSolver("z3");
+        Valuation val = new Valuation();
 
-        NativeZ3Solver z3 = new NativeZ3Solver();
-        Valuation model = new Valuation();
-        ConstraintSolver.Result jRes = z3.solve(problem.getAllAssertionsAsConjunction(), model);
-        assertEquals(jRes, ConstraintSolver.Result.SAT);
+        List<Expression<Boolean>> childrenList = problem.assertions;
+        //for(Expression c: childrenList) {
+        //    Expression nnf = NormalizationUtil.pushNegation(c);
+        //    int index = childrenList.indexOf(c);
+        //    childrenList.remove(index);
+        //    childrenList.add(index, nnf);
+        //}
+        ConstraintSolver.Result res = constraintSolver.solve(problem.getAllAssertionsAsConjunction(), val);
+        System.out.println("RESULT: " + res);*/
     }
 
-    //ToDo: Exception with BooleanExpression!
-
-    @Test(groups = {"normalization"})
-    public void equivalenceTest1(){
-
-    }
 }
