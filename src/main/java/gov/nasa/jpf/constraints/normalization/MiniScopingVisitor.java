@@ -88,61 +88,61 @@ public class MiniScopingVisitor extends
             }
         }
 
-        if(!boundInFreeLeft){
+        if(!boundInFreeLeft && boundInFreeRight){
             //no bound variables in left child of the Propositional Compound
             Expression newLeft = visit(leftChild, data);
             Expression newRight = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, rightChild), data);
             return PropositionalCompound.create(newLeft, operator, newRight);
-        }
 
-        if(!boundInFreeRight){
+        } else if(boundInFreeLeft && !boundInFreeRight){
             //no bound variables in right child of the Propositional Compound
             Expression newLeft = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, leftChild), data);
             Expression newRight = visit(rightChild, data);
             return PropositionalCompound.create(newLeft, operator, newRight);
-        }
 
-        //both children of Propositional Compound contain bound variables
-        if(quantifier == Quantifier.FORALL){
-            if(operator == LogicalOperator.AND){
-                //quantifier can be pushed into the subformulas
-                Expression newLeft = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, leftChild), data);
-                Expression newRight = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, rightChild), data);
-                return PropositionalCompound.create(newLeft, operator, newRight);
+        } else if(boundInFreeLeft && boundInFreeRight){
+            //both children of Propositional Compound contain bound variables
+            if(quantifier == Quantifier.FORALL){
+                if(operator == LogicalOperator.AND){
+                    //quantifier can be pushed into the subformulas
+                    Expression newLeft = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, leftChild), data);
+                    Expression newRight = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, rightChild), data);
+                    return PropositionalCompound.create(newLeft, operator, newRight);
+                }
+                if(operator == LogicalOperator.OR){
+                    //FORALL is blocked by OR: try to transform body to CNF and visit again
+                    Expression result = NormalizationUtil.createCNF(body);
+                    if(result instanceof PropositionalCompound){
+                        LogicalOperator newOperator = ((PropositionalCompound) result).getOperator();
+                        if(newOperator == LogicalOperator.AND){
+                            return visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, result));
+                        }
+                    }
+                }
             }
-            if(operator == LogicalOperator.OR){
-                //FORALL is blocked by OR: try to transform body to CNF and visit again
-                Expression result = NormalizationUtil.createCNF(body);
-                if(result instanceof PropositionalCompound){
-                    LogicalOperator newOperator = ((PropositionalCompound) result).getOperator();
-                    if(newOperator == LogicalOperator.AND){
-                        return visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, result));
+            if(quantifier == Quantifier.EXISTS){
+                //BUT: Nonnengart et al. suggest not to distribute over disjunctions
+                //"in order to avoid generating unnecessarily many Skolem functions"
+                //ToDo: investigate further and comment this part if necessary
+                if(operator == LogicalOperator.OR){
+                    //quantifier can be pushed into the subformulas
+                    Expression newLeft = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, leftChild), data);
+                    Expression newRight = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, rightChild), data);
+                    return PropositionalCompound.create(newLeft, operator, newRight);
+                }
+                if(operator == LogicalOperator.AND){
+                    //EXISTS is blocked by AND: try to transform body to DNF and visit again
+                    Expression result = NormalizationUtil.createDNF(body);
+                    if(result instanceof PropositionalCompound){
+                        LogicalOperator newOperator = ((PropositionalCompound) result).getOperator();
+                        if(newOperator == LogicalOperator.OR){
+                            return visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, result));
+                        }
                     }
                 }
             }
         }
-        if(quantifier == Quantifier.EXISTS){
-            //BUT: Nonnengart et al. suggest not to distribute over disjunctions
-            //"in order to avoid generating unnecessarily many Skolem functions"
-            //ToDo: investigate further and comment this part if necessary
-            if(operator == LogicalOperator.OR){
-                //quantifier can be pushed into the subformulas
-                Expression newLeft = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, leftChild), data);
-                Expression newRight = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, rightChild), data);
-                return PropositionalCompound.create(newLeft, operator, newRight);
-            }
-            if(operator == LogicalOperator.AND){
-                //EXISTS is blocked by AND: try to transform body to DNF and visit again
-                Expression result = NormalizationUtil.createDNF(body);
-                if(result instanceof PropositionalCompound){
-                    LogicalOperator newOperator = ((PropositionalCompound) result).getOperator();
-                    if(newOperator == LogicalOperator.OR){
-                        return visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, result));
-                    }
-                }
-            }
-        }
-        //no other option, I guess
+        //no bound variables in children
         return q;
     }
 
