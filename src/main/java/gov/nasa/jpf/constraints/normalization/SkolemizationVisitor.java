@@ -25,18 +25,17 @@ package gov.nasa.jpf.constraints.normalization;
 
 import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Variable;
-import gov.nasa.jpf.constraints.expressions.LogicalOperator;
 import gov.nasa.jpf.constraints.expressions.PropositionalCompound;
 import gov.nasa.jpf.constraints.expressions.Quantifier;
 import gov.nasa.jpf.constraints.expressions.QuantifierExpression;
 import gov.nasa.jpf.constraints.expressions.functions.Function;
 import gov.nasa.jpf.constraints.expressions.functions.FunctionExpression;
-import gov.nasa.jpf.constraints.types.BuiltinTypes;
 import gov.nasa.jpf.constraints.types.Type;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
 
 import java.util.*;
 
+//ToDo: refactor code
 //Creation of an anti prenex form (scope of Quantifiers should be minimized)
 //Quantifiers have to be handled ahead of ConjunctionCreator
 public class SkolemizationVisitor extends
@@ -48,29 +47,44 @@ public class SkolemizationVisitor extends
         return INSTANCE;
     }
 
-    private int id = 0;
+    private int[] id = {0};
     HashMap<String, Expression> toSkolemize = new HashMap<>();
+    Collection<Variable<?>> boundInOtherPath = new ArrayList<>();;
     Collection<String> functionNames;
     boolean firstVisit = true;
-    boolean inQuantifierExpression = false;
+    List<Variable<?>> freeVars = new ArrayList<>();
 
     @Override
     public Expression<?> visit(QuantifierExpression q, List<Variable<?>> data) {
-        List<Variable<?>> freeVars = new ArrayList<>();
         if(firstVisit){
             functionNames = NormalizationUtil.collectFunctionNames(q);
             q.collectFreeVariables(freeVars);
+
+            //free Variables are implicitly existentially quantified
+            //could possibly be replaced by a separate ExistentionalClosure
+            if(!freeVars.isEmpty()){
+                toSkolemize = NormalizationUtil.skolemizeFreeVars(freeVars, id);
+                Set<String> skolemizedFreeVars = toSkolemize.keySet();
+                for(String s : skolemizedFreeVars){
+                    while(NormalizationUtil.nameClashWithExistingNames(s, functionNames)){
+                        id[0]++;
+                        s = "SK.f.constant." + id[0] + "." + s;
+                    }
+                    functionNames.add(s);
+                }
+            }
             firstVisit = false;
         }
         Quantifier quantifier = q.getQuantifier();
         List<? extends Variable<?>> bound = q.getBoundVariables();
         Expression body = q.getBody();
-        inQuantifierExpression = true;
 
         //case: FORALL
         if(quantifier.equals(Quantifier.FORALL)){
+            //add bound variables to data
             data.addAll(bound);
             return QuantifierExpression.create(quantifier, bound, (Expression<Boolean>) visit(body, data));
+
         } else {
             //case: EXISTS
 
@@ -78,10 +92,10 @@ public class SkolemizationVisitor extends
             if(data.isEmpty()){
                 for(Variable var : bound){
                     String name = var.getName();
-                    String nameConstant = "SK.constant." + id + "." + name;
-                    while(NormalizationUtil.nameClashWithFunctions(nameConstant, functionNames)){
-                        id++;
-                        nameConstant = "SK.constant." + id + "." + name;
+                    String nameConstant = "SK.constant." + id[0] + "." + name;
+                    while(NormalizationUtil.nameClashWithExistingNames(nameConstant, functionNames)){
+                        id[0]++;
+                        nameConstant = "SK.constant." + id[0] + "." + name;
                     }
                     Type type = var.getType();
                     Function f = Function.create(nameConstant, type);
@@ -96,10 +110,10 @@ public class SkolemizationVisitor extends
                 //case: EXISTS in scope of a FORALL -> new FunctionExpression for each bound var
                 for(Variable var : bound){
                     String name = var.getName();
-                    String nameFunction = "SK.function." + id + "." + name;
-                    while(NormalizationUtil.nameClashWithFunctions(nameFunction, functionNames)){
-                        id++;
-                        nameFunction = "SK.function." + id + "." + name;
+                    String nameFunction = "SK.function." + id[0] + "." + name;
+                    while(NormalizationUtil.nameClashWithExistingNames(nameFunction, functionNames)){
+                        id[0]++;
+                        nameFunction = "SK.function." + id[0] + "." + name;
                     }
                     Type outputType = var.getType();
                     Type<?>[] paramTypes = new Type[data.toArray().length];
@@ -117,40 +131,49 @@ public class SkolemizationVisitor extends
                     functionNames.add(nameFunction);
                 }
             }
-
-            //free Variables are implicitly existentially quantified
-            //could possibly be replaced by ExistentionalClosure
-            if(!freeVars.isEmpty()){
-                for(Variable var : freeVars){
-                    String name = var.getName();
-                    String nameConstant = "SK.f.constant." + id + "." + name;
-                    while(NormalizationUtil.nameClashWithFunctions(nameConstant, functionNames)){
-                        id++;
-                        nameConstant = "SK.f.constant." + id + "." + name;
-                    }
-                    Type type = var.getType();
-                    Function f = Function.create(nameConstant, type);
-                    Variable v[] = new Variable[f.getArity()];
-                    FunctionExpression expr = FunctionExpression.create(f, v);
-
-                    toSkolemize.put(name, expr);
-                    functionNames.add(nameConstant);
-                }
-            }
-
         }
         return visit(body, data);
     }
 
     @Override
-    public <E> Expression<?> visit(Variable<E> v, List<Variable<?>> data) {
-        //todo: test if works with variables outside (maybe explicit closing of formula needed)
-        //inQuantifierExpression stays always true after one QuantifierExpression visit;
-        // that might become a problem
-        if(inQuantifierExpression){
-            if(toSkolemize.containsKey(v.getName())){
-                return toSkolemize.get(v.getName());
+    public Expression<?> visit(PropositionalCompound n, List<Variable<?>> data) {
+        if(firstVisit){
+            functionNames = NormalizationUtil.collectFunctionNames(n);
+            n.collectFreeVariables(freeVars);
+            //free Variables are implicitly existentially quantified
+            //could possibly be replaced by a separate ExistentionalClosure
+            if(!freeVars.isEmpty()){
+                if(!freeVars.isEmpty()){
+                    toSkolemize = NormalizationUtil.skolemizeFreeVars(freeVars, id);
+                    Set<String> skolemizedFreeVars = toSkolemize.keySet();
+                    for(String s : skolemizedFreeVars){
+                        while(NormalizationUtil.nameClashWithExistingNames(s, functionNames)){
+                            id[0]++;
+                            s = "SK.f.constant." + id[0] + "." + s;
+                        }
+                        functionNames.add(s);
+                    }
+                }
             }
+            firstVisit = false;
+        }
+
+        //path-wise collection of data
+        Expression leftChild = visit(n.getLeft(), data);
+        //remove boundVars of leftChild from data
+        n.getLeft().collectBoundVariables(boundInOtherPath);
+        if(!boundInOtherPath.isEmpty()){
+            data.removeAll(boundInOtherPath);
+        }
+        Expression rightChild = visit(n.getRight(), data);
+        return PropositionalCompound.create(leftChild, n.getOperator(), rightChild);
+
+    }
+
+    @Override
+    public <E> Expression<?> visit(Variable<E> v, List<Variable<?>> data) {
+        if(toSkolemize.containsKey(v.getName())){
+            return toSkolemize.get(v.getName());
         }
         return super.visit(v, data);
     }
@@ -159,8 +182,23 @@ public class SkolemizationVisitor extends
     protected <E> Expression<?> defaultVisit(Expression<E> expression, List<Variable<?>> data) {
         if(firstVisit){
             functionNames = NormalizationUtil.collectFunctionNames(expression);
-            List<Variable<?>> freeVars = new ArrayList<>();
             expression.collectFreeVariables(freeVars);
+
+            //free Variables are implicitly existentially quantified
+            //could possibly be replaced by a separate ExistentionalClosure
+            if(!freeVars.isEmpty()){
+                if(!freeVars.isEmpty()){
+                    toSkolemize = NormalizationUtil.skolemizeFreeVars(freeVars, id);
+                    Set<String> skolemizedFreeVars = toSkolemize.keySet();
+                    for(String s : skolemizedFreeVars){
+                        while(NormalizationUtil.nameClashWithExistingNames(s, functionNames)){
+                            id[0]++;
+                            s = "SK.f.constant." + id[0] + "." + s;
+                        }
+                        functionNames.add(s);
+                    }
+                }
+            }
             firstVisit = false;
         }
         return super.defaultVisit(expression, data);

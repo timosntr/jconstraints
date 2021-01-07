@@ -34,6 +34,7 @@ import gov.nasa.jpf.constraints.util.ExpressionUtil;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import static org.testng.Assert.assertEquals;
@@ -42,6 +43,8 @@ public class SkolemizationTest {
 
     Variable<Integer> x = Variable.create(BuiltinTypes.SINT32, "x");
     Variable<Integer> y = Variable.create(BuiltinTypes.SINT32, "y");
+    Variable<Integer> z = Variable.create(BuiltinTypes.SINT32, "z");
+
     Variable<Boolean> b1 = Variable.create(BuiltinTypes.BOOL, "b1");
     Variable<Boolean> b2 = Variable.create(BuiltinTypes.BOOL, "b2");
 
@@ -53,6 +56,8 @@ public class SkolemizationTest {
     Expression e3 = NumericBooleanExpression.create(x, NumericComparator.GE, c1);
     Expression e4 = NumericBooleanExpression.create(y, NumericComparator.EQ, c2);
     Expression e5 = NumericBooleanExpression.create(x, NumericComparator.GE, y);
+    Expression e6 = PropositionalCompound.create(b1, LogicalOperator.OR, e1);
+    Expression e8 = NumericBooleanExpression.create(z, NumericComparator.EQ, c2);
 
     Expression con1 = PropositionalCompound.create(e1, LogicalOperator.AND, e4);
 
@@ -137,45 +142,106 @@ public class SkolemizationTest {
         Expression<Boolean> skolemized = (Expression<Boolean>) quantified.accept(SkolemizationVisitor.getInstance(), args);
 
         System.out.println(skolemized);
+        assertEquals(skolemized.getType(), expected.getType());
         assertEquals(skolemized.toString(), expected.toString());
     }
 
-    //ToDo: test nameClash
-
-    /*@Test(groups = {"normalization"})
+    @Test(groups = {"normalization"})
     //multiple exists
-    public void multipleExistsTest(){
-        List<Variable<?>> bound1 = new ArrayList<Variable<?>>();
+    public void multiplePathsTest1(){
+        List<Variable<?>> args = new ArrayList<>();
+        List<Variable<?>> bound1 = new ArrayList<>();
         bound1.add(x);
-        List<Variable<?>> bound2 = new ArrayList<Variable<?>>();
+        List<Variable<?>> bound2 = new ArrayList<>();
         bound2.add(y);
-        Expression quantified = QuantifierExpression.create(Quantifier.FORALL, bound1,
-                PropositionalCompound.create(con1, LogicalOperator.AND,
-                        QuantifierExpression.create(Quantifier.FORALL, bound2, e2)));
-        Expression expected = PropositionalCompound.create(con1, LogicalOperator.AND, e2);
+        List<Variable<?>> bound3 = new ArrayList<>();
+        bound3.add(z);
 
-        Expression<Boolean> noForall = (Expression<Boolean>) quantified.accept(ForallRemoverVisitor.getInstance(), null);
+        Expression quantified =
+                QuantifierExpression.create(Quantifier.FORALL, bound1,
+                        ExpressionUtil.and(
+                                QuantifierExpression.create(Quantifier.FORALL, bound2, e2),
+                                QuantifierExpression.create(Quantifier.EXISTS, bound3, e8)));
+        Expression<Boolean> skolemized = (Expression<Boolean>) quantified.accept(SkolemizationVisitor.getInstance(), args);
 
-        assertEquals(noForall, expected);
+        System.out.println(quantified);
+        System.out.println(skolemized);
     }
 
     @Test(groups = {"normalization"})
-    //free Variables
-    public void freeVariablesTest(){
-        List<Variable<?>> bound1 = new ArrayList<Variable<?>>();
+    //multiple exists
+    public void multiplePathsTest2(){
+        List<Variable<?>> args = new ArrayList<>();
+        List<Variable<?>> bound1 = new ArrayList<>();
         bound1.add(x);
-        List<Variable<?>> bound2 = new ArrayList<Variable<?>>();
+        List<Variable<?>> bound3 = new ArrayList<>();
+        bound3.add(z);
+
+        Expression quantified = ExpressionUtil.and(
+                QuantifierExpression.create(Quantifier.FORALL, bound1, e1),
+                QuantifierExpression.create(Quantifier.EXISTS, bound3, e8));
+        Expression<Boolean> skolemized = (Expression<Boolean>) quantified.accept(SkolemizationVisitor.getInstance(), args);
+
+        System.out.println(quantified);
+        System.out.println(skolemized);
+    }
+
+    @Test(groups = {"normalization"})
+    //multiple exists
+    public void multipleExistsTest(){
+        List<Variable<?>> args = new ArrayList<>();
+        List<Variable<?>> bound1 = new ArrayList<>();
+        bound1.add(x);
+        List<Variable<?>> bound2 = new ArrayList<>();
         bound2.add(y);
-        Expression quantified = QuantifierExpression.create(Quantifier.FORALL, bound1,
-                PropositionalCompound.create(con1, LogicalOperator.AND,
-                        QuantifierExpression.create(Quantifier.FORALL, bound2, e2)));
-        Expression expected = PropositionalCompound.create(con1, LogicalOperator.AND, e2);
+        List<Variable<?>> bound3 = new ArrayList<>();
+        bound3.add(b1);
+        List<Variable<?>> bound4 = new ArrayList<>();
+        bound4.add(b2);
+        List<Variable<?>> bound5 = new ArrayList<>();
+        bound5.add(b2);
+        Expression quantified = ExpressionUtil.and(
+                QuantifierExpression.create(Quantifier.FORALL, bound1,
+                        ExpressionUtil.and(
+                                QuantifierExpression.create(Quantifier.FORALL, bound2, e2),
+                                QuantifierExpression.create(Quantifier.EXISTS, bound3, e6))),
+                QuantifierExpression.create(Quantifier.EXISTS, bound4,
+                        ExpressionUtil.and(
+                                QuantifierExpression.create(Quantifier.FORALL, bound1, e8),
+                                b2)));
+        Expression<Boolean> mini = (Expression<Boolean>) quantified.accept(MiniScopingVisitor.getInstance(), null);
+        Expression<Boolean> skolemized = (Expression<Boolean>) mini.accept(SkolemizationVisitor.getInstance(), args);
 
-        Expression<Boolean> noForall = (Expression<Boolean>) quantified.accept(ForallRemoverVisitor.getInstance(), null);
+        System.out.println(quantified);
+        System.out.println(mini);
+        System.out.println(skolemized);
+    }
 
-        assertEquals(noForall, expected);
-    }*/
+    @Test(groups = {"normalization"})
+    public void nameClashTest(){
+        com.google.common.base.Function<String, String> data = null;
+        Collection<Variable<?>> test = new ArrayList<>();
+        List<Variable<?>> args = new ArrayList<>();
+        List<Variable<?>> bound1 = new ArrayList<>();
+        bound1.add(x);
+        List<Variable<?>> bound2 = new ArrayList<>();
+        bound2.add(y);
+        Variable<Integer> modVar = Variable.create(BuiltinTypes.SINT32, "y");
+        Expression e7 = NumericBooleanExpression.create(c1, NumericComparator.EQ, modVar);
 
+        Expression quantified = ExpressionUtil.and(
+                QuantifierExpression.create(Quantifier.EXISTS, bound1,
+                        ExpressionUtil.and(e7, QuantifierExpression.create(Quantifier.FORALL, bound2, e2))));
+        Expression<Boolean> renamed = (Expression<Boolean>) quantified.accept(RenameBoundVarVisitor.getInstance(), data);
+        Expression<Boolean> skolemized = (Expression<Boolean>) renamed.accept(SkolemizationVisitor.getInstance(), args);
+
+        quantified.collectFreeVariables(test);
+        System.out.println(NormalizationUtil.containsDuplicateNames(test));
+        System.out.println(test);
+        System.out.println(quantified);
+        System.out.println(renamed);
+        System.out.println(skolemized);
+    }
 }
 
 

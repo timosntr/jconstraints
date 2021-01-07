@@ -33,21 +33,29 @@ import gov.nasa.jpf.constraints.expressions.QuantifierExpression;
 import gov.nasa.jpf.constraints.expressions.functions.FunctionExpression;
 import gov.nasa.jpf.constraints.normalization.experimentalVisitors.ModifiedNegatingVisitor;
 import gov.nasa.jpf.constraints.types.BuiltinTypes;
+import gov.nasa.jpf.constraints.types.Type;
 
 import java.util.*;
 
 public class NormalizationUtil {
 
-    //ToDo: minimizeScope, eliminateQuantifiers, skolemize (contains the three listed methods)
-    //ToDo: normalize
     //ToDo: further normalizing methods (order, dependencies...)
-    //ToDo: (optional) relabel
+    //ToDo: normalize
 
     public static <E> Expression<E> createCNF(Expression<E> e) {
         Expression nnf = pushNegation(e);
-        //ToDo: Skolemization, if quanfifiers are present
         if (!nnf.equals(null)) {
-            return ConjunctionCreatorVisitor.getInstance().apply(nnf, null);
+            if(quantifierCheck(e)){
+                Expression skolemized = skolemize(e);
+                Expression noQuantifiers = dropForallQuantifiers(skolemized);
+                if(!noQuantifiers.equals(null)){
+                    return ConjunctionCreatorVisitor.getInstance().apply(nnf, null);
+                } else {
+                    throw new UnsupportedOperationException("Handling of Quantifiers failed!");
+                }
+            } else {
+                return ConjunctionCreatorVisitor.getInstance().apply(nnf, null);
+            }
         } else {
             throw new UnsupportedOperationException("Creation of NNF failed, no CNF created!");
         }
@@ -55,8 +63,21 @@ public class NormalizationUtil {
 
     public static <E> Expression<E> createDNF(Expression<E> e) {
         Expression nnf = pushNegation(e);
-        //ToDo: Skolemization, if quanfifiers are present
-        return DisjunctionCreatorVisitor.getInstance().apply(nnf, null);
+        if (!nnf.equals(null)) {
+            if(quantifierCheck(e)){
+                Expression skolemized = skolemize(e);
+                Expression noQuantifiers = dropForallQuantifiers(skolemized);
+                if(!noQuantifiers.equals(null)){
+                    return DisjunctionCreatorVisitor.getInstance().apply(nnf, null);
+                } else {
+                    throw new UnsupportedOperationException("Handling of Quantifiers failed!");
+                }
+            } else {
+                return DisjunctionCreatorVisitor.getInstance().apply(nnf, null);
+            }
+        } else {
+            throw new UnsupportedOperationException("Creation of NNF failed, no DNF created!");
+        }
     }
 
     public static <E> Expression<E> pushNegation(Expression<E> e) {
@@ -136,9 +157,29 @@ public class NormalizationUtil {
     }
 
     //Methods for handling of quantifiers
-    public static <E> Expression<E> renameAllBoundVars(Expression<E> e) {
-        return RenameBoundVarVisitor.getInstance().apply(e, null);
+    public static <E> Expression<E> miniScope(Expression<E> e) {
+        return MiniScopingVisitor.getInstance().apply(e, null);
     }
+
+    public static <E> Expression<E> makeBoundVarsUnique(Expression<E> e) {
+        Function<String, String> data = null;
+        return RenameBoundVarVisitor.getInstance().apply(e, data);
+    }
+
+    public static <E> Expression<E> skolemize(Expression<E> e) {
+        Expression mini = miniScope(e);
+        Expression unique = makeBoundVarsUnique(e);
+        List<Variable<?>> data = new ArrayList<>();
+        return SkolemizationVisitor.getInstance().apply(unique, data);
+    }
+
+    public static <E> Expression<E> dropForallQuantifiers(Expression<E> e) {
+        return ForallRemoverVisitor.getInstance().apply(e, null);
+    }
+
+    /*public static <E> Expression<E> renameAllBoundVars(Expression<E> e) {
+        return RenameBoundVarVisitor.getInstance().apply(e, null);
+    }*/
 
     public static Function<String, String> renameBoundVariables(QuantifierExpression q, int[] id, Collection<Variable<?>> freeVars) {
 
@@ -149,7 +190,7 @@ public class NormalizationUtil {
             for(Variable v : boundVariables){
                 String oldName = v.getName();
                 String newName = "Q." + id[0] + "." + oldName;
-                while(nameClashWithExistingVars(newName, freeVars)){
+                while(nameClashWithExistingFreeVars(newName, freeVars)){
                     id[0]++;
                     newName = "Q." + id[0] + "." + oldName;
                 }
@@ -175,8 +216,21 @@ public class NormalizationUtil {
         return functionNames;
     }
 
-    public static boolean nameClashWithExistingVars(String name, Collection<Variable<?>> existingVars) {
+    /*public static Collection<String> collectVariableNames(Expression<?> expr) {
+        Collection<String> variableNames = new ArrayList<>();
+        if(expr instanceof Variable){
+            String name = ((Variable<?>) expr).getName();
+            variableNames.add(name);
+        }
 
+        Expression<?>[] exprChildren = expr.getChildren();
+        for(Expression i : exprChildren){
+            collectFunctionNames(i);
+        }
+        return variableNames;
+    }*/
+
+    public static boolean nameClashWithExistingFreeVars(String name, Collection<Variable<?>> existingVars) {
         if(existingVars != null) {
             for (Variable v : existingVars) {
                 String varName = v.getName();
@@ -188,16 +242,50 @@ public class NormalizationUtil {
         return false;
     }
 
-    public static boolean nameClashWithFunctions(String name, Collection<String> existingFunctions) {
-
-        if(existingFunctions != null) {
-            for (String fName : existingFunctions) {
+    public static boolean nameClashWithExistingNames(String name, Collection<String> existingNames) {
+        if(existingNames != null) {
+            for (String fName : existingNames) {
                 if(fName.equals(name)){
                     return true;
                 }
             }
         }
         return false;
+    }
+
+    public static boolean containsDuplicateNames(Collection<Variable<?>> vars) {
+        Collection<Variable> existing = new ArrayList<>();
+        if(vars != null) {
+            for (Variable v : vars) {
+                if(existing.contains(v)){
+                    return true;
+                }
+                existing.add(v);
+            }
+        }
+        return false;
+    }
+
+    //free Variables are implicitly existentially quantified
+    //could possibly be replaced by a separate ExistentionalClosure
+    public static HashMap<String, Expression> skolemizeFreeVars(Collection<Variable<?>> freeVars, int[] id) {
+        HashMap<String, Expression> functionNames = new HashMap<>();
+        if(!freeVars.isEmpty()){
+            for(Variable var : freeVars){
+                String name = var.getName();
+                String nameConstant = "SK.f.constant." + id[0] + "." + name;
+                while(functionNames.containsKey(nameConstant)){
+                    id[0]++;
+                    nameConstant = "SK.f.constant." + id[0] + "." + name;
+                }
+                Type type = var.getType();
+                gov.nasa.jpf.constraints.expressions.functions.Function f = gov.nasa.jpf.constraints.expressions.functions.Function.create(nameConstant, type);
+                Variable v[] = new Variable[f.getArity()];
+                FunctionExpression expr = FunctionExpression.create(f, v);
+                functionNames.put(name, expr);
+            }
+        }
+        return functionNames;
     }
 
     //checking methods
