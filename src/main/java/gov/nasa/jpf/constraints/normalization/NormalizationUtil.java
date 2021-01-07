@@ -161,14 +161,14 @@ public class NormalizationUtil {
         return MiniScopingVisitor.getInstance().apply(e, null);
     }
 
-    public static <E> Expression<E> makeBoundVarsUnique(Expression<E> e) {
+    public static <E> Expression<E> renameAllBoundVars(Expression<E> e) {
         Function<String, String> data = null;
         return RenameBoundVarVisitor.getInstance().apply(e, data);
     }
 
     public static <E> Expression<E> skolemize(Expression<E> e) {
         Expression mini = miniScope(e);
-        Expression unique = makeBoundVarsUnique(e);
+        Expression unique = renameAllBoundVars(e);
         List<Variable<?>> data = new ArrayList<>();
         return SkolemizationVisitor.getInstance().apply(unique, data);
     }
@@ -176,10 +176,6 @@ public class NormalizationUtil {
     public static <E> Expression<E> dropForallQuantifiers(Expression<E> e) {
         return ForallRemoverVisitor.getInstance().apply(e, null);
     }
-
-    /*public static <E> Expression<E> renameAllBoundVars(Expression<E> e) {
-        return RenameBoundVarVisitor.getInstance().apply(e, null);
-    }*/
 
     public static Function<String, String> renameBoundVariables(QuantifierExpression q, int[] id, Collection<Variable<?>> freeVars) {
 
@@ -196,7 +192,7 @@ public class NormalizationUtil {
                 }
                 mappingOfNames.put(oldName, newName);
             }
-            return (vName) -> { return mappingOfNames.get(vName); };
+            return (vName) -> { return mappingOfNames.get(vName);};
         } else {
             throw new UnsupportedOperationException("No bound variables found.");
         }

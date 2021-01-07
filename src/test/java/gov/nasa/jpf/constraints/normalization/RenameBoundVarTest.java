@@ -59,6 +59,7 @@ public class RenameBoundVarTest {
         bound.add(x);
         Expression q = QuantifierExpression.create(Quantifier.FORALL, bound, ExpressionUtil.and(e1,e2));
         Expression<Boolean> renamed = (Expression<Boolean>) q.accept(RenameBoundVarVisitor.getInstance(), data);
+        System.out.println(q);
         System.out.println(renamed);
     }
 
@@ -72,6 +73,7 @@ public class RenameBoundVarTest {
                 QuantifierExpression.create(Quantifier.FORALL, bound, e1));
 
         Expression<Boolean> renamed = (Expression<Boolean>) q.accept(RenameBoundVarVisitor.getInstance(), data);
+        System.out.println(q);
         System.out.println(renamed);
     }
 
@@ -90,6 +92,21 @@ public class RenameBoundVarTest {
     }
 
     @Test(groups = {"normalization"})
+
+    public void nestedRenamingTest3() {
+        Function<String, String> data = null;
+        List<Variable<?>> bound = new ArrayList<>();
+        bound.add(x);
+        Expression q = ExpressionUtil.or(ExpressionUtil.and(
+                QuantifierExpression.create(Quantifier.FORALL, bound, e1)),
+                QuantifierExpression.create(Quantifier.EXISTS, bound, e1), e1);
+
+        Expression<Boolean> renamed = (Expression<Boolean>) q.accept(RenameBoundVarVisitor.getInstance(), data);
+        System.out.println(q);
+        System.out.println(renamed);
+    }
+
+    @Test(groups = {"normalization"})
     //works
     public void freeVarsTest() {
         Function<String, String> data = null;
@@ -100,6 +117,7 @@ public class RenameBoundVarTest {
                 ExpressionUtil.or(e2mod, e1));
 
         Expression<Boolean> renamed = (Expression<Boolean>) q.accept(RenameBoundVarVisitor.getInstance(), data);
+        System.out.println(q);
         System.out.println(renamed);
     }
 
@@ -121,7 +139,6 @@ public class RenameBoundVarTest {
     }
 
     @Test(groups = {"normalization"})
-    //todo
     public void freeVarInOtherPathTest() {
         Function<String, String> data = null;
         List<Variable<?>> bound1 = new ArrayList<>();
