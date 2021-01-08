@@ -42,6 +42,7 @@ public class NormalizationUtil {
     //ToDo: further normalizing methods (order, dependencies...)
     //ToDo: normalize
 
+    //ToDo: fix dnf/cnf
     public static <E> Expression<E> createCNF(Expression<E> e) {
         Expression nnf = pushNegation(e);
         if (!nnf.equals(null)) {
@@ -49,13 +50,22 @@ public class NormalizationUtil {
                 Expression skolemized = skolemize(e);
                 Expression noQuantifiers = dropForallQuantifiers(skolemized);
                 if(!noQuantifiers.equals(null)){
-                    return ConjunctionCreatorVisitor.getInstance().apply(nnf, null);
+                    return ConjunctionCreatorVisitor.getInstance().apply(noQuantifiers, null);
                 } else {
                     throw new UnsupportedOperationException("Handling of Quantifiers failed!");
                 }
             } else {
                 return ConjunctionCreatorVisitor.getInstance().apply(nnf, null);
             }
+        } else {
+            throw new UnsupportedOperationException("Creation of NNF failed, no CNF created!");
+        }
+    }
+
+    public static <E> Expression<E> createCNFNoQuantorHandling(Expression<E> e) {
+        Expression nnf = pushNegation(e);
+        if (!nnf.equals(null)) {
+            return ConjunctionCreatorVisitor.getInstance().apply(nnf, null);
         } else {
             throw new UnsupportedOperationException("Creation of NNF failed, no CNF created!");
         }
@@ -68,13 +78,22 @@ public class NormalizationUtil {
                 Expression skolemized = skolemize(e);
                 Expression noQuantifiers = dropForallQuantifiers(skolemized);
                 if(!noQuantifiers.equals(null)){
-                    return DisjunctionCreatorVisitor.getInstance().apply(nnf, null);
+                    return DisjunctionCreatorVisitor.getInstance().apply(noQuantifiers, null);
                 } else {
                     throw new UnsupportedOperationException("Handling of Quantifiers failed!");
                 }
             } else {
                 return DisjunctionCreatorVisitor.getInstance().apply(nnf, null);
             }
+        } else {
+            throw new UnsupportedOperationException("Creation of NNF failed, no DNF created!");
+        }
+    }
+
+    public static <E> Expression<E> createDNFNoQuantorHandling(Expression<E> e) {
+        Expression nnf = pushNegation(e);
+        if (!nnf.equals(null)) {
+            return DisjunctionCreatorVisitor.getInstance().apply(nnf, null);
         } else {
             throw new UnsupportedOperationException("Creation of NNF failed, no DNF created!");
         }
@@ -168,7 +187,7 @@ public class NormalizationUtil {
 
     public static <E> Expression<E> skolemize(Expression<E> e) {
         Expression mini = miniScope(e);
-        Expression unique = renameAllBoundVars(e);
+        Expression unique = renameAllBoundVars(mini);
         List<Variable<?>> data = new ArrayList<>();
         return SkolemizationVisitor.getInstance().apply(unique, data);
     }

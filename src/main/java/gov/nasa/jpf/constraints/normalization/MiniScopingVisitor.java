@@ -111,7 +111,7 @@ public class MiniScopingVisitor extends
                 }
                 if(operator == LogicalOperator.OR){
                     //FORALL is blocked by OR: try to transform body to CNF and visit again
-                    Expression result = NormalizationUtil.createCNF(body);
+                    Expression result = NormalizationUtil.createCNFNoQuantorHandling(body);
                     if(result instanceof PropositionalCompound){
                         LogicalOperator newOperator = ((PropositionalCompound) result).getOperator();
                         if(newOperator == LogicalOperator.AND){
@@ -132,7 +132,7 @@ public class MiniScopingVisitor extends
                 }
                 if(operator == LogicalOperator.AND){
                     //EXISTS is blocked by AND: try to transform body to DNF and visit again
-                    Expression result = NormalizationUtil.createDNF(body);
+                    Expression result = NormalizationUtil.createDNFNoQuantorHandling(body);
                     if(result instanceof PropositionalCompound){
                         LogicalOperator newOperator = ((PropositionalCompound) result).getOperator();
                         if(newOperator == LogicalOperator.OR){

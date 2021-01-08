@@ -67,13 +67,20 @@ public class RenameBoundVarTest {
     //works
     public void nestedRenamingTest1() {
         Function<String, String> data = null;
+        List<Variable<?>> freeVars = new ArrayList<>();
         List<Variable<?>> bound = new ArrayList<>();
         bound.add(x);
         Expression q = ExpressionUtil.or(e1,
                 QuantifierExpression.create(Quantifier.FORALL, bound, e1));
 
         Expression<Boolean> renamed = (Expression<Boolean>) q.accept(RenameBoundVarVisitor.getInstance(), data);
+
+        q.collectFreeVariables(freeVars);
+        System.out.println("FreeVars in q: " + freeVars);
         System.out.println(q);
+        freeVars.removeAll(freeVars);
+        renamed.collectFreeVariables(freeVars);
+        System.out.println("FreeVars in renamed: " + freeVars);
         System.out.println(renamed);
     }
 
