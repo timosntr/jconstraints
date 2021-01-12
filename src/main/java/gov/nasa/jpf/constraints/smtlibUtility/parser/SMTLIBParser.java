@@ -164,7 +164,7 @@ public class SMTLIBParser {
       res = processLetExpression((Let) expr);
     } else if (expr instanceof Symbol) {
       res = resolveSymbol((ISymbol) expr);
-    } else if (expr instanceof IExpr.IForall || expr instanceof IExpr.IExists){
+    } else if (expr instanceof IExpr.IForall || expr instanceof IExpr.IExists) {
       res = processQuantifierExpression(expr);
     } else {
       throw new SMTLIBParserNotSupportedException(
@@ -172,23 +172,6 @@ public class SMTLIBParser {
     }
     return res;
   }
-  //ToDo
-  /*private Expression processType(final ISort sort) throws SMTLIBParserException {
-    Expression res = null;
-    if (expr instanceof FcnExpr) {
-      res = processFunctionExpression((FcnExpr) expr);
-    } else if (expr instanceof Let) {
-      res = processLetExpression((Let) expr);
-    } else if (expr instanceof Symbol) {
-      res = resolveSymbol((ISymbol) expr);
-    } else if (expr instanceof IExpr.IForall || expr instanceof IExpr.IExists){
-      res = processQuantifierExpression(expr);
-    } else {
-      throw new SMTLIBParserNotSupportedException(
-              "Cannot parse the subexpression of type: " + expr.getClass());
-    }
-    return res;
-  }*/
 
   private Expression processQuantifierExpression(final IExpr sExpr) throws SMTLIBParserException {
     final Quantifier quantifier;
@@ -198,33 +181,54 @@ public class SMTLIBParser {
     if (sExpr instanceof IExpr.IForall){
       quantifier = Quantifier.FORALL;
       List<IExpr.IDeclaration> parameters = ((IExpr.IForall) sExpr).parameters();
-      //ToDo: not sure (maybe adding IDeclaration or ISort to process needed?)
       if(!parameters.isEmpty()){
-        for (final IExpr.IDeclaration binding : parameters) {
-          final Expression parameterValue = processExpression(binding.parameter());
-          final Variable parameter =
-                  Variable.create(parameterValue.getType(), binding.parameter().value());
-          /*final ISort parameterType = binding.sort();
-          final Variable parameter =
-                  Variable.create(parameterType, binding.parameter().value());*/
-          boundVariables.add(parameter);
+        for (final IExpr.IDeclaration bound : parameters) {
+          final String parameterValue = bound.parameter().value();
+          ISort parameterSort = bound.sort();
+
+          if (!(parameterSort instanceof Sort.Application)) {
+            throw new SMTLIBParserException("Could only convert type of type NamedSort.Application");
+          }
+          final Sort.Application application = (Sort.Application) parameterSort;
+
+          final Type<?> type = TypeMap.getType(application.toString());
+          if (type == null) {
+            throw new SMTLIBParserExceptionInvalidMethodCall(
+                    "Could not resolve type declared in function: " + application.toString());
+          } else {
+            final Variable parameter =
+                    Variable.create(type, parameterValue);
+            boundVariables.add(parameter);
+          }
         }
       }
       IExpr bodyExpr = ((IExpr.IForall) sExpr).expr();
       body = processExpression(bodyExpr);
     } else { // sExpr instanceof IExpr.IExists
       quantifier = Quantifier.EXISTS;
-      List<IExpr.IDeclaration> parameters = ((IExpr.IForall) sExpr).parameters();
-      //ToDo: not sure
+      List<IExpr.IDeclaration> parameters = ((IExpr.IExists) sExpr).parameters();
       if(!parameters.isEmpty()){
-        for (final IExpr.IDeclaration binding : parameters) {
-          final Expression parameterValue = processExpression(binding.parameter());
-          final Variable parameter =
-                  Variable.create(parameterValue.getType(), binding.parameter().value());
-          boundVariables.add(parameter);
+        for (final IExpr.IDeclaration bound : parameters) {
+          final String parameterValue = bound.parameter().value();
+          ISort parameterSort = bound.sort();
+
+          if (!(parameterSort instanceof Sort.Application)) {
+            throw new SMTLIBParserException("Could only convert type of type NamedSort.Application");
+          }
+          final Sort.Application application = (Sort.Application) parameterSort;
+
+          final Type<?> type = TypeMap.getType(application.toString());
+          if (type == null) {
+            throw new SMTLIBParserExceptionInvalidMethodCall(
+                    "Could not resolve type declared in function: " + application.toString());
+          } else {
+            final Variable parameter =
+                    Variable.create(type, parameterValue);
+            boundVariables.add(parameter);
+          }
         }
       }
-      IExpr bodyExpr = ((IExpr.IForall) sExpr).expr();
+      IExpr bodyExpr = ((IExpr.IExists) sExpr).expr();
       body = processExpression(bodyExpr);
     }
     return QuantifierExpression.create(quantifier, boundVariables, body);
