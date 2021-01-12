@@ -25,32 +25,7 @@ package gov.nasa.jpf.constraints.smtlibUtility.parser;
 
 import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Variable;
-import gov.nasa.jpf.constraints.expressions.BitvectorExpression;
-import gov.nasa.jpf.constraints.expressions.BitvectorOperator;
-import gov.nasa.jpf.constraints.expressions.Constant;
-import gov.nasa.jpf.constraints.expressions.ExpressionOperator;
-import gov.nasa.jpf.constraints.expressions.IfThenElse;
-import gov.nasa.jpf.constraints.expressions.LetExpression;
-import gov.nasa.jpf.constraints.expressions.LogicalOperator;
-import gov.nasa.jpf.constraints.expressions.Negation;
-import gov.nasa.jpf.constraints.expressions.NumericBooleanExpression;
-import gov.nasa.jpf.constraints.expressions.NumericComparator;
-import gov.nasa.jpf.constraints.expressions.NumericCompound;
-import gov.nasa.jpf.constraints.expressions.NumericOperator;
-import gov.nasa.jpf.constraints.expressions.PropositionalCompound;
-import gov.nasa.jpf.constraints.expressions.RegExBooleanExpression;
-import gov.nasa.jpf.constraints.expressions.RegExBooleanOperator;
-import gov.nasa.jpf.constraints.expressions.RegExCompoundOperator;
-import gov.nasa.jpf.constraints.expressions.RegExOperator;
-import gov.nasa.jpf.constraints.expressions.RegexCompoundExpression;
-import gov.nasa.jpf.constraints.expressions.RegexOperatorExpression;
-import gov.nasa.jpf.constraints.expressions.StringBooleanExpression;
-import gov.nasa.jpf.constraints.expressions.StringBooleanOperator;
-import gov.nasa.jpf.constraints.expressions.StringCompoundExpression;
-import gov.nasa.jpf.constraints.expressions.StringIntegerExpression;
-import gov.nasa.jpf.constraints.expressions.StringIntegerOperator;
-import gov.nasa.jpf.constraints.expressions.StringOperator;
-import gov.nasa.jpf.constraints.expressions.UnaryMinus;
+import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.smtlibUtility.SMTProblem;
 import gov.nasa.jpf.constraints.types.BuiltinTypes;
 import gov.nasa.jpf.constraints.types.Type;
@@ -68,16 +43,12 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.smtlib.CharSequenceReader;
-import org.smtlib.ICommand;
-import org.smtlib.IExpr;
+
+import org.smtlib.*;
 import org.smtlib.IExpr.IDecimal;
 import org.smtlib.IExpr.INumeral;
 import org.smtlib.IExpr.IStringLiteral;
 import org.smtlib.IExpr.ISymbol;
-import org.smtlib.IParser;
-import org.smtlib.ISource;
-import org.smtlib.SMT;
 import org.smtlib.command.C_assert;
 import org.smtlib.command.C_check_sat;
 import org.smtlib.command.C_declare_fun;
@@ -193,11 +164,70 @@ public class SMTLIBParser {
       res = processLetExpression((Let) expr);
     } else if (expr instanceof Symbol) {
       res = resolveSymbol((ISymbol) expr);
+    } else if (expr instanceof IExpr.IForall || expr instanceof IExpr.IExists){
+      res = processQuantifierExpression(expr);
     } else {
       throw new SMTLIBParserNotSupportedException(
-          "Cannot pare the subexpression of type: " + expr.getClass());
+          "Cannot parse the subexpression of type: " + expr.getClass());
     }
     return res;
+  }
+  //ToDo
+  /*private Expression processType(final ISort sort) throws SMTLIBParserException {
+    Expression res = null;
+    if (expr instanceof FcnExpr) {
+      res = processFunctionExpression((FcnExpr) expr);
+    } else if (expr instanceof Let) {
+      res = processLetExpression((Let) expr);
+    } else if (expr instanceof Symbol) {
+      res = resolveSymbol((ISymbol) expr);
+    } else if (expr instanceof IExpr.IForall || expr instanceof IExpr.IExists){
+      res = processQuantifierExpression(expr);
+    } else {
+      throw new SMTLIBParserNotSupportedException(
+              "Cannot parse the subexpression of type: " + expr.getClass());
+    }
+    return res;
+  }*/
+
+  private Expression processQuantifierExpression(final IExpr sExpr) throws SMTLIBParserException {
+    final Quantifier quantifier;
+    List<Variable<?>> boundVariables = new ArrayList<>();
+    Expression<Boolean> body;
+
+    if (sExpr instanceof IExpr.IForall){
+      quantifier = Quantifier.FORALL;
+      List<IExpr.IDeclaration> parameters = ((IExpr.IForall) sExpr).parameters();
+      //ToDo: not sure (maybe adding IDeclaration or ISort to process needed?)
+      if(!parameters.isEmpty()){
+        for (final IExpr.IDeclaration binding : parameters) {
+          final Expression parameterValue = processExpression(binding.parameter());
+          final Variable parameter =
+                  Variable.create(parameterValue.getType(), binding.parameter().value());
+          /*final ISort parameterType = binding.sort();
+          final Variable parameter =
+                  Variable.create(parameterType, binding.parameter().value());*/
+          boundVariables.add(parameter);
+        }
+      }
+      IExpr bodyExpr = ((IExpr.IForall) sExpr).expr();
+      body = processExpression(bodyExpr);
+    } else { // sExpr instanceof IExpr.IExists
+      quantifier = Quantifier.EXISTS;
+      List<IExpr.IDeclaration> parameters = ((IExpr.IForall) sExpr).parameters();
+      //ToDo: not sure
+      if(!parameters.isEmpty()){
+        for (final IExpr.IDeclaration binding : parameters) {
+          final Expression parameterValue = processExpression(binding.parameter());
+          final Variable parameter =
+                  Variable.create(parameterValue.getType(), binding.parameter().value());
+          boundVariables.add(parameter);
+        }
+      }
+      IExpr bodyExpr = ((IExpr.IForall) sExpr).expr();
+      body = processExpression(bodyExpr);
+    }
+    return QuantifierExpression.create(quantifier, boundVariables, body);
   }
 
   private Expression processLetExpression(final Let sExpr) throws SMTLIBParserException {
