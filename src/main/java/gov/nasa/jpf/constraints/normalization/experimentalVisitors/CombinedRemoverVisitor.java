@@ -21,21 +21,63 @@
  * <p>Modifications and new contributions are Copyright by TU Dortmund 2020, Malte Mues under Apache
  * 2.0 in alignment with the original repository license.
  */
-package gov.nasa.jpf.constraints.normalization;
+package gov.nasa.jpf.constraints.normalization.experimentalVisitors;
 
 import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.expressions.*;
-import gov.nasa.jpf.constraints.types.BuiltinTypes;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
-import org.apache.commons.math3.analysis.function.Exp;
 
-public class IfThenElseRemoverVisitor extends
+//this is a combined remover, which could be used before creating a NNF
+//because of modularity it should only be used for experimental reasons
+public class CombinedRemoverVisitor extends
         DuplicatingVisitor<Void> {
 
-    private static final IfThenElseRemoverVisitor INSTANCE = new IfThenElseRemoverVisitor();
+    private static final CombinedRemoverVisitor INSTANCE = new CombinedRemoverVisitor();
 
-    public static IfThenElseRemoverVisitor getInstance(){
+    public static CombinedRemoverVisitor getInstance(){
         return INSTANCE;
+    }
+
+    @Override
+    public Expression<?> visit(PropositionalCompound expression, Void data) {
+        Expression<?> left = expression.getLeft();
+        Expression<?> right = expression.getRight();
+        LogicalOperator operator = expression.getOperator();
+
+        if(operator.equals(LogicalOperator.XOR)) {
+            Expression<Boolean> partLeft = PropositionalCompound.create((Expression<Boolean>) left, LogicalOperator.OR, right);
+            Expression<Boolean> partRight = PropositionalCompound.create(Negation.create((Expression<Boolean>) left), LogicalOperator.OR, Negation.create((Expression<Boolean>) right));
+            Expression<Boolean> result = PropositionalCompound.create(
+                    (Expression<Boolean>) visit(partLeft, data),
+                    LogicalOperator.AND,
+                    visit(partRight, data));
+
+            return result;
+        } else if(operator.equals(LogicalOperator.EQUIV)) {
+            Expression<Boolean> partLeft = PropositionalCompound.create(Negation.create((Expression<Boolean>) left), LogicalOperator.OR, right);
+            Expression<Boolean> partRight = PropositionalCompound.create((Expression<Boolean>) left, LogicalOperator.OR, Negation.create((Expression<Boolean>) right));
+            Expression<Boolean> result = PropositionalCompound.create(
+                    (Expression<Boolean>) visit(partLeft, data),
+                    LogicalOperator.AND,
+                    visit(partRight, data));
+
+            return result;
+        } else if(operator.equals(LogicalOperator.IMPLY)){
+            Expression<Boolean> partLeft = Negation.create((Expression<Boolean>) left);
+            Expression<Boolean> result = PropositionalCompound.create(
+                    (Expression<Boolean>) visit(partLeft, data),
+                    LogicalOperator.OR,
+                    visit(right, data));
+
+            return result;
+        } else {
+            Expression visitedExpr = PropositionalCompound.create(
+                    (Expression<Boolean>) visit(left, data),
+                    operator,
+                    visit(right, data));
+
+            return visitedExpr;
+        }
     }
 
     @Override
@@ -50,37 +92,14 @@ public class IfThenElseRemoverVisitor extends
         Expression result = PropositionalCompound.create(firstPart, LogicalOperator.AND, secondPart);
 
         return result;
-
-        //ToDo: this is an older version, which showed some outliers
-        // which are not existing anymore in the version above -> investigation needed!
-
-        /*
-        * Expression ifCond = expr.getIf();
-        Expression thenExpr = expr.getThen();
-        Expression elseExpr = expr.getElse();
-
-        assert ifCond.getType().equals(BuiltinTypes.BOOL);
-        if(thenExpr.getType().equals(BuiltinTypes.BOOL) && elseExpr.getType().equals(BuiltinTypes.BOOL)){
-            Expression firstPart = PropositionalCompound.create(Negation.create(ifCond), LogicalOperator.OR, thenExpr);
-            Expression secondPart = PropositionalCompound.create(ifCond, LogicalOperator.OR, elseExpr);
-
-            //visit again for finding nested IfThenElse
-            Expression result = PropositionalCompound.create(
-                    (Expression<Boolean>) visit(firstPart, data),
-                    LogicalOperator.AND,
-                    visit(secondPart, data));
-
-            return result;
-        } else {
-            return expr;
-        }
-        * */
     }
 
     @Override
     //Not needed if LetExpressionRemover is used beforehand
     public Expression<?> visit(LetExpression let, Void data) {
-        return super.visit(let.flattenLetExpression(), data);
+        Expression flattened = let.flattenLetExpression();
+        Expression result = visit(flattened, data);
+        return result;
     }
 
     //maybe more efficient
