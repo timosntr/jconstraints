@@ -53,6 +53,7 @@ public enum NumericOperator implements ExpressionOperator {
       case "+":
         return PLUS;
       case "%":
+      case "mod":
         return REM;
       default:
         return null;

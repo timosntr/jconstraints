@@ -131,7 +131,7 @@ public class SMTLIBParser {
       throw new SMTLIBParserExceptionInvalidMethodCall(
           "Could not resolve type declared in function: " + application.toString());
     }
-    final Variable var = Variable.create(type, cmd.symbol().toString());
+    final Variable var = Variable.create(type, cmd.symbol().value());
     problem.addVariable(var);
   }
 
@@ -149,6 +149,9 @@ public class SMTLIBParser {
       resolved = processLetExpression((Let) arg);
     } else if (arg instanceof IStringLiteral) {
       resolved = resolveStringLiteral((IStringLiteral) arg);
+    }
+      else if (arg instanceof IExpr.IForall || arg instanceof IExpr.IExists) {
+      resolved = processQuantifierExpression(arg);
     } else {
       throw new SMTLIBParserNotSupportedException(
           "The arguments type is not supported: " + arg.getClass());
@@ -199,6 +202,7 @@ public class SMTLIBParser {
             final Variable parameter =
                     Variable.create(type, parameterValue);
             boundVariables.add(parameter);
+            problem.addVariable(parameter);
           }
         }
       }
@@ -225,6 +229,7 @@ public class SMTLIBParser {
             final Variable parameter =
                     Variable.create(type, parameterValue);
             boundVariables.add(parameter);
+            problem.addVariable(parameter);
           }
         }
       }
