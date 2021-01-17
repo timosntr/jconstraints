@@ -250,7 +250,7 @@ public class SkolemizationTest {
         Expression quantified = ExpressionUtil.and(
                 QuantifierExpression.create(Quantifier.EXISTS, bound1,
                         ExpressionUtil.and(e7, QuantifierExpression.create(Quantifier.FORALL, bound2, e2))));
-        Expression<Boolean> renamed = (Expression<Boolean>) quantified.accept(RenameBoundVarVisitor.getInstance(), data);
+        Expression<Boolean> renamed = (Expression<Boolean>) quantified.accept(RenamingBoundVarVisitor.getInstance(), data);
         Expression<Boolean> skolemized = (Expression<Boolean>) renamed.accept(SkolemizationVisitor.getInstance(), args);
 
         quantified.collectFreeVariables(test);

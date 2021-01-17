@@ -23,7 +23,6 @@
  */
 package gov.nasa.jpf.constraints.normalization;
 
-import com.google.common.base.Function;
 import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.*;
@@ -32,20 +31,17 @@ import gov.nasa.jpf.constraints.util.ExpressionUtil;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 
-import static org.testng.Assert.assertEquals;
 
-
-public class RenameBoundVarTest {
+public class RenamingBoundVarTest {
 
     Variable<Integer> x = Variable.create(BuiltinTypes.SINT32, "x");
     Variable<Integer> y = Variable.create(BuiltinTypes.SINT32, "y");
     Variable<Integer> y2 = Variable.create(BuiltinTypes.SINT32, "Q.1.x");
     Variable<Integer> z = Variable.create(BuiltinTypes.SINT32, "z");
     Constant<Integer> c1 = Constant.create(BuiltinTypes.SINT32, 1);
-    Constant<Integer> c2 = Constant.create(BuiltinTypes.SINT32, 2);
     Expression e1 = NumericBooleanExpression.create(x, NumericComparator.LT, c1);
     Expression e2 = NumericBooleanExpression.create(y, NumericComparator.GE, c1);
     Expression e2mod = NumericBooleanExpression.create(y2, NumericComparator.GE, c1);
@@ -54,11 +50,11 @@ public class RenameBoundVarTest {
     @Test(groups = {"normalization"})
     //works
     public void simpleRenamingTest() {
-        Function<String, String> data = null;
+        HashMap<String, String> data = new HashMap<>();
         List<Variable<?>> bound = new ArrayList<>();
         bound.add(x);
         Expression q = QuantifierExpression.create(Quantifier.FORALL, bound, ExpressionUtil.and(e1,e2));
-        Expression<Boolean> renamed = (Expression<Boolean>) q.accept(RenameBoundVarVisitor.getInstance(), data);
+        Expression<Boolean> renamed = (Expression<Boolean>) q.accept(RenamingBoundVarVisitor.getInstance(), data);
         System.out.println(q);
         System.out.println(renamed);
     }
@@ -66,14 +62,14 @@ public class RenameBoundVarTest {
     @Test(groups = {"normalization"})
     //works
     public void nestedRenamingTest1() {
-        Function<String, String> data = null;
+        HashMap<String, String> data = new HashMap<>();
         List<Variable<?>> freeVars = new ArrayList<>();
         List<Variable<?>> bound = new ArrayList<>();
         bound.add(x);
         Expression q = ExpressionUtil.or(e1,
                 QuantifierExpression.create(Quantifier.FORALL, bound, e1));
 
-        Expression<Boolean> renamed = (Expression<Boolean>) q.accept(RenameBoundVarVisitor.getInstance(), data);
+        Expression<Boolean> renamed = (Expression<Boolean>) q.accept(RenamingBoundVarVisitor.getInstance(), data);
 
         q.collectFreeVariables(freeVars);
         System.out.println("FreeVars in q: " + freeVars);
@@ -87,28 +83,30 @@ public class RenameBoundVarTest {
     @Test(groups = {"normalization"})
     //works
     public void nestedRenamingTest2() {
-        Function<String, String> data = null;
+        HashMap<String, String> data = new HashMap<>();
         List<Variable<?>> bound = new ArrayList<>();
         bound.add(x);
-        Expression q = ExpressionUtil.or(e1, ExpressionUtil.and(
-                QuantifierExpression.create(Quantifier.FORALL, bound, e1)),
-                QuantifierExpression.create(Quantifier.EXISTS, bound, e1));
+        Expression q = ExpressionUtil.or(e1, PropositionalCompound.create(
+                QuantifierExpression.create(Quantifier.FORALL, bound, e1),
+                LogicalOperator.AND,
+                QuantifierExpression.create(Quantifier.EXISTS, bound, e1)));
 
-        Expression<Boolean> renamed = (Expression<Boolean>) q.accept(RenameBoundVarVisitor.getInstance(), data);
+        Expression<Boolean> renamed = (Expression<Boolean>) q.accept(RenamingBoundVarVisitor.getInstance(), data);
+        System.out.println(q);
         System.out.println(renamed);
     }
 
     @Test(groups = {"normalization"})
-
+    //works
     public void nestedRenamingTest3() {
-        Function<String, String> data = null;
+        HashMap<String, String> data = new HashMap<>();
         List<Variable<?>> bound = new ArrayList<>();
         bound.add(x);
         Expression q = ExpressionUtil.or(ExpressionUtil.and(
                 QuantifierExpression.create(Quantifier.FORALL, bound, e1)),
                 QuantifierExpression.create(Quantifier.EXISTS, bound, e1), e1);
 
-        Expression<Boolean> renamed = (Expression<Boolean>) q.accept(RenameBoundVarVisitor.getInstance(), data);
+        Expression<Boolean> renamed = (Expression<Boolean>) q.accept(RenamingBoundVarVisitor.getInstance(), data);
         System.out.println(q);
         System.out.println(renamed);
     }
@@ -116,14 +114,14 @@ public class RenameBoundVarTest {
     @Test(groups = {"normalization"})
     //works
     public void freeVarsTest() {
-        Function<String, String> data = null;
+        HashMap<String, String> data = new HashMap<>();
         List<Variable<?>> bound = new ArrayList<>();
         bound.add(x);
         Expression q = ExpressionUtil.or(e1, ExpressionUtil.and(
                 QuantifierExpression.create(Quantifier.FORALL, bound, e1)),
                 ExpressionUtil.or(e2mod, e1));
 
-        Expression<Boolean> renamed = (Expression<Boolean>) q.accept(RenameBoundVarVisitor.getInstance(), data);
+        Expression<Boolean> renamed = (Expression<Boolean>) q.accept(RenamingBoundVarVisitor.getInstance(), data);
         System.out.println(q);
         System.out.println(renamed);
     }
@@ -131,7 +129,7 @@ public class RenameBoundVarTest {
     @Test(groups = {"normalization"})
     //works
     public void nestedQuantifierTest() {
-        Function<String, String> data = null;
+        HashMap<String, String> data = new HashMap<>();
         List<Variable<?>> bound1 = new ArrayList<>();
         bound1.add(x);
         List<Variable<?>> bound2 = new ArrayList<>();
@@ -140,14 +138,16 @@ public class RenameBoundVarTest {
 
         Expression<Boolean> allBound = QuantifierExpression.create(Quantifier.EXISTS, bound1,
                 ExpressionUtil.or(e1, QuantifierExpression.create(Quantifier.FORALL, bound2, ExpressionUtil.and(e1, e2))));
-        Expression<Boolean> renamed = (Expression<Boolean>) allBound.accept(RenameBoundVarVisitor.getInstance(), data);
+        Expression<Boolean> renamed = (Expression<Boolean>) allBound.accept(RenamingBoundVarVisitor.getInstance(), data);
 
+        System.out.println(allBound);
         System.out.println(renamed);
     }
 
     @Test(groups = {"normalization"})
+    //works
     public void freeVarInOtherPathTest() {
-        Function<String, String> data = null;
+        HashMap<String, String> data = new HashMap<>();
         List<Variable<?>> bound1 = new ArrayList<>();
         bound1.add(x);
         List<Variable<?>> bound2 = new ArrayList<>();
@@ -156,7 +156,46 @@ public class RenameBoundVarTest {
 
         Expression<Boolean> allBound = ExpressionUtil.and(e2mod, QuantifierExpression.create(Quantifier.EXISTS, bound1,
                 ExpressionUtil.or(e1, QuantifierExpression.create(Quantifier.FORALL, bound2, ExpressionUtil.and(e1, e2)))));
-        Expression<Boolean> renamed = (Expression<Boolean>) allBound.accept(RenameBoundVarVisitor.getInstance(), data);
+        Expression<Boolean> renamed = (Expression<Boolean>) allBound.accept(RenamingBoundVarVisitor.getInstance(), data);
+
+        System.out.println(allBound);
+        System.out.println(renamed);
+    }
+
+    @Test(groups = {"normalization"})
+    //works
+    public void renamingProblemTest() {
+        HashMap<String, String> data = new HashMap<>();
+        List<Variable<?>> bound1 = new ArrayList<>();
+        bound1.add(x);
+        bound1.add(y);
+        List<Variable<?>> bound2 = new ArrayList<>();
+        bound2.add(x);
+
+        Expression<Boolean> allBound = (QuantifierExpression.create(Quantifier.EXISTS, bound1,
+                ExpressionUtil.or(e1, QuantifierExpression.create(Quantifier.FORALL, bound2, ExpressionUtil.and(e1, e2)))));
+        Expression<Boolean> renamed = (Expression<Boolean>) allBound.accept(RenamingBoundVarVisitor.getInstance(), data);
+
+        System.out.println(allBound);
+        System.out.println(renamed);
+    }
+
+    @Test(groups = {"normalization"})
+    //works
+    public void renamingProblemTest2() {
+        HashMap<String, String> data = new HashMap<>();
+        List<Variable<?>> bound1 = new ArrayList<>();
+        bound1.add(x);
+        bound1.add(y);
+        List<Variable<?>> bound2 = new ArrayList<>();
+        bound2.add(x);
+        List<Variable<?>> bound3 = new ArrayList<>();
+        bound3.add(y);
+
+        Expression<Boolean> allBound = (QuantifierExpression.create(Quantifier.EXISTS, bound1,
+                ExpressionUtil.or(e1, QuantifierExpression.create(Quantifier.FORALL, bound2,
+                        ExpressionUtil.and(e1, ExpressionUtil.or(QuantifierExpression.create(Quantifier.FORALL, bound3, e2), e2))))));
+        Expression<Boolean> renamed = (Expression<Boolean>) allBound.accept(RenamingBoundVarVisitor.getInstance(), data);
 
         System.out.println(allBound);
         System.out.println(renamed);
