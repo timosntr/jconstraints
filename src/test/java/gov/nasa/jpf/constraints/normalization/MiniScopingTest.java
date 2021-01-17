@@ -129,6 +129,34 @@ public class MiniScopingTest {
         System.out.println(minimized);
     }
 
+    @Test(groups = {"normalization"})
+    //free vars in both
+    public void notMixedQuantifierTest1(){
+        List<Variable<?>> bound1 = new ArrayList<>();
+        bound1.add(x);
+        List<Variable<?>> bound2 = new ArrayList<>();
+        bound2.add(y);
+        Expression q = QuantifierExpression.create(Quantifier.FORALL, bound1, ExpressionUtil.and(e1, QuantifierExpression.create(Quantifier.FORALL, bound2, ExpressionUtil.and(e1, e2))));
+
+        Expression<Boolean> minimized = (Expression<Boolean>) q.accept(MiniScopingVisitor.getInstance(), null);
+        System.out.println(q);
+        System.out.println(minimized);
+    }
+
+    @Test(groups = {"normalization"})
+    //gemischte quantifier dürfen einander nicht überspringen
+    public void mixedQuantifierTest1(){
+        List<Variable<?>> bound1 = new ArrayList<>();
+        bound1.add(x);
+        List<Variable<?>> bound2 = new ArrayList<>();
+        bound2.add(y);
+        Expression q = QuantifierExpression.create(Quantifier.FORALL, bound1, PropositionalCompound.create(e1, LogicalOperator.AND, QuantifierExpression.create(Quantifier.EXISTS, bound2, PropositionalCompound.create(e1, LogicalOperator.AND, e2))));
+
+        Expression<Boolean> minimized = (Expression<Boolean>) q.accept(MiniScopingVisitor.getInstance(), null);
+        System.out.println(q);
+        System.out.println(minimized);
+    }
+
 }
 
 

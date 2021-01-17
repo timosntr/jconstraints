@@ -47,10 +47,19 @@ public class MiniScopingVisitor extends
     public Expression<?> visit(QuantifierExpression q, Void data) {
 
         Quantifier quantifier = q.getQuantifier();
-        List<? extends Variable> bound = q.getBoundVariables();
+        List<? extends Variable<?>> bound = q.getBoundVariables();
+        //todo: do not miniscope inner quantifier first?
         Expression body = visit(q.getBody(), data);
         //if quantified body is not a Propositional Compound, mini scoping is done here
         //negations have to be pushed beforehand!
+        if(body instanceof QuantifierExpression){
+            Expression innerQuantifier = visit(body, data);
+            return visit(QuantifierExpression.create(quantifier, bound, innerQuantifier));
+        }
+        //TODO: actually they should all be flattened
+        if(body instanceof LetExpression){
+            return visit(((LetExpression) body).flattenLetExpression(), data);
+        }
         if(!(body instanceof PropositionalCompound)){
             return q;
         }
@@ -89,6 +98,102 @@ public class MiniScopingVisitor extends
         }
 
         if(!boundInFreeLeft && boundInFreeRight){
+            if(leftChild instanceof QuantifierExpression){
+                if(!((QuantifierExpression) leftChild).getQuantifier().equals(quantifier)){
+                    Expression result = QuantifierExpression.create(quantifier, bound, (Expression<Boolean>) visit(body, data));
+                    return result;
+                }
+            }
+            if(rightChild instanceof QuantifierExpression){
+                if(!((QuantifierExpression) rightChild).getQuantifier().equals(quantifier)){
+                    Expression result = QuantifierExpression.create(quantifier, bound, (Expression<Boolean>) visit(body, data));
+                    return result;
+                }
+            }
+            //no bound variables in left child of the Propositional Compound
+            Expression newLeft = visit(leftChild, data);
+            Expression newRight = visit(QuantifierExpression.create(quantifier, bound, rightChild), data);
+            return PropositionalCompound.create(newLeft, operator, newRight);
+
+        } else if(boundInFreeLeft && !boundInFreeRight){
+            if(leftChild instanceof QuantifierExpression){
+                if(!((QuantifierExpression) leftChild).getQuantifier().equals(quantifier)){
+                    Expression result = QuantifierExpression.create(quantifier, bound, (Expression<Boolean>) visit(body, data));
+                    return result;
+                }
+            }
+            if(rightChild instanceof QuantifierExpression){
+                if(!((QuantifierExpression) rightChild).getQuantifier().equals(quantifier)){
+                    //TODO: visit whole expression again in case further miniscoping is possible?
+                    Expression result = QuantifierExpression.create(quantifier, bound, (Expression<Boolean>) visit(body, data));
+                    return result;
+                }
+            }
+
+            //no bound variables in right child of the Propositional Compound
+            Expression newLeft = visit(QuantifierExpression.create(quantifier, bound, leftChild), data);
+            Expression newRight = visit(rightChild, data);
+            return PropositionalCompound.create(newLeft, operator, newRight);
+
+        } else if(boundInFreeLeft && boundInFreeRight){
+            if(leftChild instanceof QuantifierExpression){
+                if(!((QuantifierExpression) leftChild).getQuantifier().equals(quantifier)){
+                    Expression result = QuantifierExpression.create(quantifier, bound, (Expression<Boolean>) visit(body, data));
+                    return result;
+                }
+            }
+            if(rightChild instanceof QuantifierExpression){
+                if(!((QuantifierExpression) rightChild).getQuantifier().equals(quantifier)){
+                    Expression result = QuantifierExpression.create(quantifier, bound, (Expression<Boolean>) visit(body, data));
+                    return result;
+                }
+            }
+            //both children of Propositional Compound contain bound variables
+            if(quantifier == Quantifier.FORALL){
+                if(operator == LogicalOperator.AND){
+                    //quantifier can be pushed into the subformulas
+                    Expression newLeft = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, leftChild), data);
+                    Expression newRight = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, rightChild), data);
+                    return PropositionalCompound.create(newLeft, operator, newRight);
+                }
+                if(operator == LogicalOperator.OR){
+                    //FORALL is blocked by OR: try to transform body to CNF and visit again
+                    Expression result = NormalizationUtil.createCNFNoQuantorHandling(body);
+                    if(result instanceof PropositionalCompound){
+                        LogicalOperator newOperator = ((PropositionalCompound) result).getOperator();
+                        if(newOperator == LogicalOperator.AND){
+                            return visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, result));
+                        }
+                    }
+                }
+            }
+            if(quantifier == Quantifier.EXISTS){
+                //BUT: Nonnengart et al. suggest not to distribute over disjunctions
+                //"in order to avoid generating unnecessarily many Skolem functions"
+                //ToDo: investigate further and comment this part if necessary
+                if(operator == LogicalOperator.OR){
+                    //quantifier can be pushed into the subformulas
+                    Expression newLeft = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, leftChild), data);
+                    Expression newRight = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, rightChild), data);
+                    return PropositionalCompound.create(newLeft, operator, newRight);
+                }
+                if(operator == LogicalOperator.AND){
+                    //EXISTS is blocked by AND: try to transform body to DNF and visit again
+                    Expression result = NormalizationUtil.createDNFNoQuantorHandling(body);
+                    if(result instanceof PropositionalCompound){
+                        LogicalOperator newOperator = ((PropositionalCompound) result).getOperator();
+                        if(newOperator == LogicalOperator.OR){
+                            return visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, result));
+                        }
+                    }
+                }
+            }
+        }
+        //no bound variables in children
+        return q;
+
+        //old version
+        /*if(!boundInFreeLeft && boundInFreeRight){
             //no bound variables in left child of the Propositional Compound
             Expression newLeft = visit(leftChild, data);
             Expression newRight = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, rightChild), data);
@@ -143,10 +248,36 @@ public class MiniScopingVisitor extends
             }
         }
         //no bound variables in children
-        return q;
+        return q;*/
+    }
+
+    @Override
+    public Expression<?> visit(LetExpression expr, Void data) {
+        Expression flattened = expr.flattenLetExpression();
+        Expression result = visit(flattened, data);
+        return result;
+    }
+
+    @Override
+    public <E> Expression<?> visit(IfThenElse<E> n, Void data) {
+        return super.visit(n, data);
     }
 
     public <T> Expression<T> apply(Expression<T> expr, Void data) {
         return visit(expr, data).requireAs(expr.getType());
     }
+
+    /*@Override
+    public Expression<?> visit(IfThenElse expr, Void data) {
+        Expression ifCond = expr.getIf();
+        Expression thenExpr = visit(expr.getThen(), data);
+        Expression elseExpr = visit(expr.getElse(), data);
+
+        Expression firstPart = PropositionalCompound.create(Negation.create(ifCond), LogicalOperator.OR, thenExpr);
+        Expression secondPart = PropositionalCompound.create(ifCond, LogicalOperator.OR, elseExpr);
+
+        Expression result = PropositionalCompound.create(firstPart, LogicalOperator.AND, secondPart);
+
+        return result;
+    }*/
 }
