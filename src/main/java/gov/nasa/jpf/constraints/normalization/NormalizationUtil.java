@@ -26,13 +26,9 @@ package gov.nasa.jpf.constraints.normalization;
 import com.google.common.base.Function;
 import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Variable;
-import gov.nasa.jpf.constraints.expressions.IfThenElse;
-import gov.nasa.jpf.constraints.expressions.LogicalOperator;
-import gov.nasa.jpf.constraints.expressions.PropositionalCompound;
-import gov.nasa.jpf.constraints.expressions.QuantifierExpression;
+import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.expressions.functions.FunctionExpression;
 import gov.nasa.jpf.constraints.normalization.experimentalVisitors.ModifiedNegatingVisitor;
-import gov.nasa.jpf.constraints.types.BuiltinTypes;
 import gov.nasa.jpf.constraints.types.Type;
 
 import java.util.*;
@@ -42,7 +38,7 @@ public class NormalizationUtil {
     //ToDo: further normalizing methods (order, dependencies...)
     //ToDo: normalize
 
-    //ToDo: fix dnf/cnf
+    //ToDo: fix skolemization
     public static <E> Expression<E> createCNF(Expression<E> e) {
         Expression nnf = pushNegation(e);
         if (!nnf.equals(null)) {
@@ -180,27 +176,67 @@ public class NormalizationUtil {
         return MiniScopingVisitor.getInstance().apply(e, null);
     }
 
+    public static <E> Expression<E> miniScopeTest(Expression<E> e) {
+        Expression nnf = pushNegation(e);
+
+        return MiniScopingVisitor.getInstance().apply(nnf, null);
+    }
+
     public static <E> Expression<E> renameAllBoundVars(Expression<E> e) {
-        Function<String, String> data = null;
-        return RenameBoundVarVisitor.getInstance().apply(e, data);
+        //Function<String, String> data = null;
+        //return RenameBoundVarVisitor.getInstance().apply(e, data);
+        HashMap<String, String> data = new HashMap<>();
+        return RenamingBoundVarVisitor.getInstance().apply(e, data);
+    }
+
+    public static <E> Expression<E> renameAllBoundVarsTestV(Expression<E> e) {
+        //Function<String, String> data = null;
+        //return RenameBoundVarVisitor.getInstance().apply(e, data);
+        Expression nnf = pushNegation(e);
+        HashMap<String, String> data = new HashMap<>();
+        return RenamingBoundVarVisitor.getInstance().apply(nnf, data);
+    }
+
+    public static <E> Expression<E> miniAndRename(Expression<E> e) {
+        Expression renamed = renameAllBoundVarsTestV(e);
+        //Function<String, String> data = null;
+        //return RenameBoundVarVisitor.getInstance().apply(mini, data);
+        //HashMap<String, String> data = new HashMap<>();
+        return MiniScopingVisitor.getInstance().apply(renamed, null);
     }
 
     public static <E> Expression<E> skolemize(Expression<E> e) {
-        Expression mini = miniScope(e);
-        Expression unique = renameAllBoundVars(mini);
+        Expression unique = renameAllBoundVars(e);
+        Expression mini = miniScope(unique);
         List<Variable<?>> data = new ArrayList<>();
-        return SkolemizationVisitor.getInstance().apply(unique, data);
+        return SkolemizationVisitor.getInstance().apply(mini, data);
+    }
+
+    public static <E> Expression<E> skolemizeTest(Expression<E> e) {
+        Expression unique = renameAllBoundVars(e);
+        Expression mini = miniScopeTest(unique);
+        List<Variable<?>> data = new ArrayList<>();
+        return SkolemizationVisitor.getInstance().apply(mini, data);
     }
 
     public static <E> Expression<E> dropForallQuantifiers(Expression<E> e) {
         return ForallRemoverVisitor.getInstance().apply(e, null);
     }
 
-    public static Function<String, String> renameBoundVariables(QuantifierExpression q, int[] id, Collection<Variable<?>> freeVars) {
+    public static <E> Expression<E> removeQuantifiers(Expression<E> e) {
+        Expression nnf = pushNegation(e);
+
+        Expression skolemized = skolemize(nnf);
+        Expression noQuantifiers = dropForallQuantifiers(skolemized);
+
+        return noQuantifiers;
+    }
+
+    public static Function<String, String> renameBoundVariables(QuantifierExpression q, int[] id, Collection<Variable<?>> freeVars, HashMap<String, String> renamingMap) {
 
         //UUID id = UUID.randomUUID();
         List<? extends Variable<?>> boundVariables = q.getBoundVariables();
-        HashMap<String, String> mappingOfNames = new HashMap<>();
+        //HashMap<String, String> mappingOfNames = new HashMap<>();
         if(boundVariables != null){
             for(Variable v : boundVariables){
                 String oldName = v.getName();
@@ -209,9 +245,10 @@ public class NormalizationUtil {
                     id[0]++;
                     newName = "Q." + id[0] + "." + oldName;
                 }
-                mappingOfNames.put(oldName, newName);
+
+                renamingMap.put(oldName, newName);
             }
-            return (vName) -> { return mappingOfNames.get(vName);};
+            return (vName) -> { return renamingMap.get(vName);};
         } else {
             throw new UnsupportedOperationException("No bound variables found.");
         }
@@ -310,10 +347,20 @@ public class NormalizationUtil {
             return true;
         }
 
-        Expression<?>[] exprChildren = expr.getChildren();
-        for(Expression i : exprChildren){
-            if(quantifierCheck(i)){
-                return true;
+        if(expr instanceof LetExpression){
+            Expression flattened = ((LetExpression) expr).flattenLetExpression();
+            Expression<?>[] exprChildren = flattened.getChildren();
+            for(Expression i : exprChildren){
+                if(quantifierCheck(i)){
+                    return true;
+                }
+            }
+        } else {
+            Expression<?>[] exprChildren = expr.getChildren();
+            for(Expression i : exprChildren){
+                if(quantifierCheck(i)){
+                    return true;
+                }
             }
         }
         return false;
@@ -344,6 +391,20 @@ public class NormalizationUtil {
         Expression<?>[] exprChildren = expr.getChildren();
         for(Expression i : exprChildren){
             if(ifThenElseCheck(i)){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static boolean letExpressionCheck(Expression<?> expr){
+        if(expr instanceof LetExpression){
+            return true;
+        }
+
+        Expression<?>[] exprChildren = expr.getChildren();
+        for(Expression i : exprChildren){
+            if(letExpressionCheck(i)){
                 return true;
             }
         }
