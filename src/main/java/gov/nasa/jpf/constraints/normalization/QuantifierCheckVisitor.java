@@ -25,6 +25,7 @@ package gov.nasa.jpf.constraints.normalization;
 
 import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.expressions.AbstractExpressionVisitor;
+import gov.nasa.jpf.constraints.expressions.LetExpression;
 import gov.nasa.jpf.constraints.expressions.QuantifierExpression;
 
 
@@ -39,6 +40,14 @@ public class QuantifierCheckVisitor extends AbstractExpressionVisitor {
     @Override
     public Object visit(QuantifierExpression q, Object data) {
         return true;
+    }
+
+    @Override
+    public Expression<?> visit(LetExpression expr, Object data) {
+
+        Expression flattened = expr.flattenLetExpression();
+        Expression result = (Expression) visit(flattened, data);
+        return result;
     }
 
     @Override

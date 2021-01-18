@@ -27,7 +27,10 @@ import com.google.common.base.Function;
 import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.*;
+import gov.nasa.jpf.constraints.simplifiers.datastructures.ArithmeticVarReplacements;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
+import gov.nasa.jpf.constraints.util.ExpressionUtil;
+import org.smtlib.impl.SMTExpr;
 
 public class LetExpressionRemoverVisitor extends
         DuplicatingVisitor<Void> {
@@ -40,7 +43,10 @@ public class LetExpressionRemoverVisitor extends
 
     @Override
     public Expression<?> visit(LetExpression expr, Void data) {
-
+        /*Expression main = expr.getMainValue();
+        if(main instanceof LetExpression){
+           //ToDo: find a way to flatten anyway
+        }*/
         Expression flattened = expr.flattenLetExpression();
         Expression result = visit(flattened, data);
         return result;

@@ -162,6 +162,14 @@ public class ConjunctionCreatorVisitor extends
         return q;
     }
 
+    //seems to be needed, as LetExpressions can't be flattened bottom-up
+    @Override
+    public Expression<?> visit(LetExpression expr, Void data) {
+        Expression flattened = expr.flattenLetExpression();
+        Expression result = visit(flattened, data);
+        return result;
+    }
+
     @Override
     public <E> Expression<?> visit(FunctionExpression<E> f, Void data) {
         return super.visit(f, data);
