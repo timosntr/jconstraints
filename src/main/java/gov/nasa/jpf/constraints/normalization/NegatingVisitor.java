@@ -177,18 +177,50 @@ public class NegatingVisitor extends
     @Override
     public <E> Expression<?> visit(IfThenElse<E> expr, Boolean shouldNegate) {
 
-        Expression result = expr.flattenIfThenElse();
+        Expression thenExpr = expr.getThen();
+        Expression elseExpr = expr.getElse();
+        if(shouldNegate){
+            if(thenExpr.getType().equals(BuiltinTypes.BOOL) && elseExpr.getType().equals(BuiltinTypes.BOOL)){
+                Expression firstPart = PropositionalCompound.create(Negation.create(expr.getIf()), LogicalOperator.OR, thenExpr);
+                Expression secondPart = PropositionalCompound.create(expr.getIf(), LogicalOperator.OR, elseExpr);
+
+                //visit again for finding nested IfThenElse
+                Expression result = PropositionalCompound.create(
+                        (Expression<Boolean>) firstPart,
+                        LogicalOperator.AND,
+                        secondPart);
+
+                return visit(Negation.create(result), false);
+            }
+            //IfThenElse from NumericBooleanExpression or NumericCompound won't reach up to here
+        }
+
+        if(thenExpr.getType().equals(BuiltinTypes.BOOL) && elseExpr.getType().equals(BuiltinTypes.BOOL)) {
+            Expression firstPart = PropositionalCompound.create(Negation.create(expr.getIf()), LogicalOperator.OR, thenExpr);
+            Expression secondPart = PropositionalCompound.create(expr.getIf(), LogicalOperator.OR, elseExpr);
+
+            //visit again for finding nested IfThenElse
+            Expression result = PropositionalCompound.create(
+                    (Expression<Boolean>) visit(firstPart, false),
+                    LogicalOperator.AND,
+                    visit(secondPart, false));
+
+            return result;
+        }
+
+        /*Expression result = expr.flattenIfThenElse();
 
         if(shouldNegate){
             if(result.getType().equals(BuiltinTypes.BOOL)){
                 return visit(Negation.create(result), false);
             } else {
+                return
                 //ToDo: not sure if this is the right solution for IfThenElse with
                 // non-boolean typed children
                 Expression newIte = IfThenElse.create(expr.getIf(), Negation.create((Expression<Boolean>) expr.getThen()), Negation.create((Expression<Boolean>) expr.getElse()));
                 return visit(newIte, false);
             }
-        }
+        }*/
         return visit(expr, false);
     }
 
@@ -257,6 +289,12 @@ public class NegatingVisitor extends
             }
         }
         return visit(flattened, false);
+    }
+
+    @Override
+    public <E> Expression<?> visit(NumericCompound<E> n, Boolean data) {
+        //ToDo: test if correct, should safe from IfThenElse problems
+        return n;
     }
 
     //defaultVisit for CastExpression, NumericCompound, StringIntegerExpression,
