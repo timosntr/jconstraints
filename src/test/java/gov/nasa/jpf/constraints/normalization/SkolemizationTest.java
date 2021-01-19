@@ -35,6 +35,7 @@ import org.testng.annotations.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 
 import static org.testng.Assert.assertEquals;
@@ -237,7 +238,7 @@ public class SkolemizationTest {
 
     @Test(groups = {"normalization"})
     public void nameClashTest(){
-        com.google.common.base.Function<String, String> data = null;
+        HashMap<String, String> data = new HashMap<>();
         Collection<Variable<?>> test = new ArrayList<>();
         List<Variable<?>> args = new ArrayList<>();
         List<Variable<?>> bound1 = new ArrayList<>();
@@ -260,6 +261,8 @@ public class SkolemizationTest {
         System.out.println(renamed);
         System.out.println(skolemized);
     }
+
+
 }
 
 
