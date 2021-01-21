@@ -27,6 +27,7 @@ import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
+import gov.nasa.jpf.constraints.util.ExpressionUtil;
 
 import java.util.*;
 
@@ -40,15 +41,10 @@ public class RenamingBoundVarVisitor extends
   }
 
   private int[] id = {0};
-  Collection<Variable<?>> freeVars = new ArrayList<>();
-  boolean firstVisit = true;
+  Set<Variable<?>> freeVars = new HashSet<>();
 
   @Override
   public <E> Expression<?> visit(Variable<E> v, HashMap<String, String> data) {
-    if(firstVisit){
-      v.collectFreeVariables(freeVars);
-      firstVisit = false;
-    }
 
     //String newName = "";
     if(data.containsKey(v.getName())){
@@ -65,10 +61,6 @@ public class RenamingBoundVarVisitor extends
   public Expression<?> visit(QuantifierExpression q, HashMap<String, String> data){
     List<Variable<?>> boundVariables = (List<Variable<?>>) q.getBoundVariables();
     id[0]++;
-    if(firstVisit){
-      q.collectFreeVariables(freeVars);
-      firstVisit = false;
-    }
     LinkedList<Variable<?>> renamedBoundVariables = new LinkedList<>();
 
     if(boundVariables != null) {
@@ -102,10 +94,6 @@ public class RenamingBoundVarVisitor extends
 
   @Override
   public Expression<?> visit(PropositionalCompound n, HashMap<String, String> data) {
-    if(firstVisit){
-      n.collectFreeVariables(freeVars);
-      firstVisit = false;
-    }
     //renamings only relevant in the left path should not be used in the right path
     HashMap<String, String> rightMap = (HashMap<String, String>) data.clone();
 
@@ -117,35 +105,27 @@ public class RenamingBoundVarVisitor extends
 
   @Override
   protected <E> Expression<?> defaultVisit(Expression<E> expression, HashMap<String, String> data) {
-    if(firstVisit){
-      expression.collectFreeVariables(freeVars);
-      firstVisit = false;
-    }
-    expression.collectFreeVariables(freeVars);
     return super.defaultVisit(expression, data);
   }
 
   @Override
   public Expression<?> visit(LetExpression expr, HashMap<String, String> data) {
-    /*Expression flattened = expr.flattenLetExpression();
-    if(firstVisit){
-      flattened.collectFreeVariables(freeVars);
-      firstVisit = false;
-    }
-
-    Expression result = visit(flattened, data);
-    return result;*/
+    //TODO: version 1 (not working)
+    //Expression flattened = expr.flattenLetExpression();
+    //Expression result = visit(flattened, data);
+    //return result;
     List<Variable> par = expr.getParameters();
     List<Variable> newPar = new ArrayList<>();
     Map<Variable, Expression> map = expr.getParameterValues();
     Map<Variable, Expression> newMap = new HashMap<>();
-    for(Variable v : par){
+    /*for(Variable v : par){
       if(data.containsKey(v.getName())){
         String newName = data.get(v.getName());
         Variable newVar = Variable.create(v.getType(), newName);
         newPar.add(newVar);
         if(map.containsKey(v.getName())){
           Expression val = map.get(v.getName());
+          //ToDo?
           Expression newVal = visit(val, data);
           newMap.put(newVar, newVal);
         }
@@ -153,18 +133,41 @@ public class RenamingBoundVarVisitor extends
         newPar.add(v);
         newMap.put(v, map.get(v.getName()));
       }
+    }*/
+    //TODO: version 2 (seems to work)
+    for(Variable v : par){
+      if(data.containsKey(v.getName())){
+        String newName = data.get(v.getName());
+        Variable newVar = Variable.create(v.getType(), newName);
+        newPar.add(newVar);
+        for(Expression e : map.values()){
+          Expression renamedExpression = visit(e, data);
+          newMap.put(newVar, renamedExpression);
+        }
+      } else {
+        newPar.add(v);
+        for(Expression e : map.values()){
+          Expression renamedExpression = visit(e, data);
+          newMap.put(v, renamedExpression);
+        }
+        //newMap.put(v, map.get(v.getName()));
+      }
     }
+    //TODO: version 3
+    /*for(Variable v : par){
+        for(Expression e : map.values()){
+          Expression renamedExpression = visit(e, data);
+          newMap.put(v, renamedExpression);
+        }
+    }*/
     Expression newMain = visit(expr.getMainValue(), data);
+    //return LetExpression.create(par, newMap, newMain).flattenLetExpression();
 
     return LetExpression.create(newPar, newMap, newMain).flattenLetExpression();
   }
 
   @Override
   public <E> Expression<?> visit(IfThenElse<E> n, HashMap<String, String> data) {
-    if(firstVisit){
-      n.collectFreeVariables(freeVars);
-      firstVisit = false;
-    }
     Expression newIfCond = visit(n.getIf(), data);
     Expression newThenExpr = visit(n.getThen(), data);
     Expression newElseExpr = visit(n.getElse(), data);
@@ -173,6 +176,7 @@ public class RenamingBoundVarVisitor extends
   }
 
   public <T> Expression<T> apply(Expression<T> expr, HashMap<String, String> data) {
+    freeVars = ExpressionUtil.freeVariables(expr);
     return visit(expr, data).requireAs(expr.getType());
   }
 

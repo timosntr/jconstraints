@@ -50,16 +50,16 @@ public class MiniScopingVisitor extends
         List<? extends Variable<?>> bound = q.getBoundVariables();
         //todo: do not miniscope inner quantifier first?
         Expression body = visit(q.getBody(), data);
+
         //if quantified body is not a Propositional Compound, mini scoping is done here
         //negations have to be pushed beforehand!
         if(body instanceof QuantifierExpression){
-            Expression innerQuantifier = visit(body, data);
-            return visit(QuantifierExpression.create(quantifier, bound, innerQuantifier));
+            return QuantifierExpression.create(quantifier, bound, body);
         }
         //TODO: actually they should all be flattened
-        if(body instanceof LetExpression){
-            return visit(((LetExpression) body).flattenLetExpression(), data);
-        }
+        /*if(body instanceof LetExpression){
+            return ((LetExpression) body).flattenLetExpression();
+        }*/
         if(!(body instanceof PropositionalCompound)){
             return q;
         }
@@ -98,62 +98,24 @@ public class MiniScopingVisitor extends
         }
 
         if(!boundInFreeLeft && boundInFreeRight){
-            /*if(leftChild instanceof QuantifierExpression){
-                if(!((QuantifierExpression) leftChild).getQuantifier().equals(quantifier)){
-                    Expression result = QuantifierExpression.create(quantifier, bound, (Expression<Boolean>) visit(body, data));
-                    return result;
-                }
-            }
-            if(rightChild instanceof QuantifierExpression){
-                if(!((QuantifierExpression) rightChild).getQuantifier().equals(quantifier)){
-                    Expression result = QuantifierExpression.create(quantifier, bound, (Expression<Boolean>) visit(body, data));
-                    return result;
-                }
-            }*/
             //no bound variables in left child of the Propositional Compound
             Expression newLeft = visit(leftChild, data);
             Expression newRight = visit(QuantifierExpression.create(quantifier, bound, rightChild), data);
             return PropositionalCompound.create(newLeft, operator, newRight);
 
         } else if(boundInFreeLeft && !boundInFreeRight){
-            /*if(leftChild instanceof QuantifierExpression){
-                if(!((QuantifierExpression) leftChild).getQuantifier().equals(quantifier)){
-                    Expression result = QuantifierExpression.create(quantifier, bound, (Expression<Boolean>) visit(body, data));
-                    return result;
-                }
-            }
-            if(rightChild instanceof QuantifierExpression){
-                if(!((QuantifierExpression) rightChild).getQuantifier().equals(quantifier)){
-                    //TODO: visit whole expression again in case further miniscoping is possible?
-                    Expression result = QuantifierExpression.create(quantifier, bound, (Expression<Boolean>) visit(body, data));
-                    return result;
-                }
-            }*/
-
             //no bound variables in right child of the Propositional Compound
             Expression newLeft = visit(QuantifierExpression.create(quantifier, bound, leftChild), data);
             Expression newRight = visit(rightChild, data);
             return PropositionalCompound.create(newLeft, operator, newRight);
 
         } else if(boundInFreeLeft && boundInFreeRight){
-            /*if(leftChild instanceof QuantifierExpression){
-                if(!((QuantifierExpression) leftChild).getQuantifier().equals(quantifier)){
-                    Expression result = QuantifierExpression.create(quantifier, bound, (Expression<Boolean>) visit(body, data));
-                    return result;
-                }
-            }
-            if(rightChild instanceof QuantifierExpression){
-                if(!((QuantifierExpression) rightChild).getQuantifier().equals(quantifier)){
-                    Expression result = QuantifierExpression.create(quantifier, bound, (Expression<Boolean>) visit(body, data));
-                    return result;
-                }
-            }*/
             //both children of Propositional Compound contain bound variables
             if(quantifier == Quantifier.FORALL){
                 if(operator == LogicalOperator.AND){
                     //quantifier can be pushed into the subformulas
-                    Expression newLeft = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, leftChild), data);
-                    Expression newRight = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, rightChild), data);
+                    Expression newLeft = visit(QuantifierExpression.create(quantifier, bound, leftChild), data);
+                    Expression newRight = visit(QuantifierExpression.create(quantifier, bound, rightChild), data);
                     return PropositionalCompound.create(newLeft, operator, newRight);
                 }
                 if(operator == LogicalOperator.OR){
@@ -162,7 +124,7 @@ public class MiniScopingVisitor extends
                     if(result instanceof PropositionalCompound){
                         LogicalOperator newOperator = ((PropositionalCompound) result).getOperator();
                         if(newOperator == LogicalOperator.AND){
-                            return visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, result));
+                            return visit(QuantifierExpression.create(quantifier, bound, result));
                         }
                     }
                 }
@@ -173,8 +135,8 @@ public class MiniScopingVisitor extends
                 //ToDo: investigate further and comment this part if necessary
                 if(operator == LogicalOperator.OR){
                     //quantifier can be pushed into the subformulas
-                    Expression newLeft = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, leftChild), data);
-                    Expression newRight = visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, rightChild), data);
+                    Expression newLeft = visit(QuantifierExpression.create(quantifier, bound, leftChild), data);
+                    Expression newRight = visit(QuantifierExpression.create(quantifier, bound, rightChild), data);
                     return PropositionalCompound.create(newLeft, operator, newRight);
                 }
                 if(operator == LogicalOperator.AND){
@@ -183,12 +145,13 @@ public class MiniScopingVisitor extends
                     if(result instanceof PropositionalCompound){
                         LogicalOperator newOperator = ((PropositionalCompound) result).getOperator();
                         if(newOperator == LogicalOperator.OR){
-                            return visit(QuantifierExpression.create(quantifier, (List<? extends Variable<?>>) bound, result));
+                            return visit(QuantifierExpression.create(quantifier, bound, result));
                         }
                     }
                 }
             }
         }
+
         //no bound variables in children
         return q;
 

@@ -30,6 +30,7 @@ import gov.nasa.jpf.constraints.expressions.functions.Function;
 import gov.nasa.jpf.constraints.expressions.functions.FunctionExpression;
 import gov.nasa.jpf.constraints.types.Type;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
+import gov.nasa.jpf.constraints.util.ExpressionUtil;
 
 import java.util.*;
 
@@ -47,32 +48,13 @@ public class SkolemizationVisitor extends
 
     private int[] id = {0};
     HashMap<String, Expression> toSkolemize = new HashMap<>();
-    Collection<Variable<?>> boundInOtherPath = new ArrayList<>();;
-    Collection<String> functionNames;
-    boolean firstVisit = true;
-    List<Variable<?>> freeVars = new ArrayList<>();
+    Collection<Variable<?>> boundInOtherPath = new ArrayList<>();
+    Collection<String> functionNames = new ArrayList<>();
+    Set<Variable<?>> freeVars = new HashSet<>();
 
     @Override
     public Expression<?> visit(QuantifierExpression q, List<Variable<?>> data) {
-        if(firstVisit){
-            functionNames = NormalizationUtil.collectFunctionNames(q);
-            q.collectFreeVariables(freeVars);
 
-            //free Variables are implicitly existentially quantified
-            //could possibly be replaced by a separate ExistentionalClosure
-            if(!freeVars.isEmpty()){
-                toSkolemize = NormalizationUtil.skolemizeFreeVars(freeVars, id);
-                Set<String> skolemizedFreeVars = toSkolemize.keySet();
-                for(String s : skolemizedFreeVars){
-                    while(NormalizationUtil.nameClashWithExistingNames(s, functionNames)){
-                        id[0]++;
-                        s = "SK.f.constant." + id[0] + "." + s;
-                    }
-                    functionNames.add(s);
-                }
-            }
-            firstVisit = false;
-        }
         Quantifier quantifier = q.getQuantifier();
         List<? extends Variable<?>> bound = q.getBoundVariables();
         Expression body = q.getBody();
@@ -98,8 +80,8 @@ public class SkolemizationVisitor extends
                     Type type = var.getType();
                     Function f = Function.create(nameConstant, type);
                     //arity here = 0
-                    //Variable v[] = new Variable[f.getArity()];
-                    Variable v[] = new Variable[0];
+                    Variable v[] = new Variable[f.getArity()];
+                    //Variable v[] = new Variable[0];
                     FunctionExpression expr = FunctionExpression.create(f, v);
 
                     toSkolemize.put(name, expr);
@@ -137,27 +119,6 @@ public class SkolemizationVisitor extends
 
     @Override
     public Expression<?> visit(PropositionalCompound n, List<Variable<?>> data) {
-        if(firstVisit){
-            functionNames = NormalizationUtil.collectFunctionNames(n);
-            n.collectFreeVariables(freeVars);
-            //free Variables are implicitly existentially quantified
-            //could possibly be replaced by a separate ExistentionalClosure
-            if(!freeVars.isEmpty()){
-                if(!freeVars.isEmpty()){
-                    toSkolemize = NormalizationUtil.skolemizeFreeVars(freeVars, id);
-                    Set<String> skolemizedFreeVars = toSkolemize.keySet();
-                    for(String s : skolemizedFreeVars){
-                        while(NormalizationUtil.nameClashWithExistingNames(s, functionNames)){
-                            id[0]++;
-                            s = "SK.f.constant." + id[0] + "." + s;
-                        }
-                        functionNames.add(s);
-                    }
-                }
-            }
-            firstVisit = false;
-        }
-
         //path-wise collection of data
         Expression leftChild = visit(n.getLeft(), data);
         //remove boundVars of leftChild from data
@@ -181,53 +142,11 @@ public class SkolemizationVisitor extends
 
     @Override
     protected <E> Expression<?> defaultVisit(Expression<E> expression, List<Variable<?>> data) {
-        if(firstVisit){
-            functionNames = NormalizationUtil.collectFunctionNames(expression);
-            expression.collectFreeVariables(freeVars);
-
-            //free Variables are implicitly existentially quantified
-            //could possibly be replaced by a separate ExistentionalClosure
-            if(!freeVars.isEmpty()){
-                if(!freeVars.isEmpty()){
-                    toSkolemize = NormalizationUtil.skolemizeFreeVars(freeVars, id);
-                    Set<String> skolemizedFreeVars = toSkolemize.keySet();
-                    for(String s : skolemizedFreeVars){
-                        while(NormalizationUtil.nameClashWithExistingNames(s, functionNames)){
-                            id[0]++;
-                            s = "SK.f.constant." + id[0] + "." + s;
-                        }
-                        functionNames.add(s);
-                    }
-                }
-            }
-            firstVisit = false;
-        }
         return super.defaultVisit(expression, data);
     }
 
     @Override
     public Expression<?> visit(LetExpression expr, List<Variable<?>> data) {
-        if(firstVisit){
-            functionNames = NormalizationUtil.collectFunctionNames(expr);
-            expr.collectFreeVariables(freeVars);
-            //free Variables are implicitly existentially quantified
-            //could possibly be replaced by a separate ExistentionalClosure
-            if(!freeVars.isEmpty()){
-                if(!freeVars.isEmpty()){
-                    toSkolemize = NormalizationUtil.skolemizeFreeVars(freeVars, id);
-                    Set<String> skolemizedFreeVars = toSkolemize.keySet();
-                    for(String s : skolemizedFreeVars){
-                        while(NormalizationUtil.nameClashWithExistingNames(s, functionNames)){
-                            id[0]++;
-                            s = "SK.f.constant." + id[0] + "." + s;
-                        }
-                        functionNames.add(s);
-                    }
-                }
-            }
-            firstVisit = false;
-        }
-
         /*List<Variable> par = expr.getParameters();
         List<Variable> newPar = new ArrayList<>();
         Map<Variable, Expression> map = expr.getParameterValues();
@@ -257,37 +176,33 @@ public class SkolemizationVisitor extends
         return result;
     }
 
-    /*@Override
+    @Override
     public <E> Expression<?> visit(IfThenElse<E> n, List<Variable<?>> data) {
-        if(firstVisit){
-            functionNames = NormalizationUtil.collectFunctionNames(n);
-            n.collectFreeVariables(freeVars);
-            //free Variables are implicitly existentially quantified
-            //could possibly be replaced by a separate ExistentionalClosure
-            if(!freeVars.isEmpty()){
-                if(!freeVars.isEmpty()){
-                    toSkolemize = NormalizationUtil.skolemizeFreeVars(freeVars, id);
-                    Set<String> skolemizedFreeVars = toSkolemize.keySet();
-                    for(String s : skolemizedFreeVars){
-                        while(NormalizationUtil.nameClashWithExistingNames(s, functionNames)){
-                            id[0]++;
-                            s = "SK.f.constant." + id[0] + "." + s;
-                        }
-                        functionNames.add(s);
-                    }
-                }
-            }
-            firstVisit = false;
-        }
-        //todo: probably won't work without proper flattening first, because NumericCompounds also have to be changed
+
         Expression newIfCond = visit(n.getIf(), data);
         Expression newThenExpr = visit(n.getThen(), data);
         Expression newElseExpr = visit(n.getElse(), data);
 
         return IfThenElse.create(newIfCond, newThenExpr, newElseExpr);
-    }*/
+    }
 
     public <T> Expression<T> apply(Expression<T> expr, List<Variable<?>> data) {
+        functionNames = NormalizationUtil.collectFunctionNames(expr);
+        freeVars = ExpressionUtil.freeVariables(expr);
+
+        //free Variables are implicitly existentially quantified
+        //could possibly be replaced by a separate ExistentionalClosure
+        if(!freeVars.isEmpty()){
+            toSkolemize = NormalizationUtil.skolemizeFreeVars(freeVars, id);
+            Set<String> skolemizedFreeVars = toSkolemize.keySet();
+            for(String s : skolemizedFreeVars){
+                while(NormalizationUtil.nameClashWithExistingNames(s, functionNames)){
+                    id[0]++;
+                    s = "SK.f.constant." + id[0] + "." + s;
+                }
+                functionNames.add(s);
+            }
+        }
         return visit(expr, data).requireAs(expr.getType());
     }
 }
