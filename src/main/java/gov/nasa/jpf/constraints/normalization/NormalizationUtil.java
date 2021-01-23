@@ -44,9 +44,8 @@ public class NormalizationUtil {
         if (!nnf.equals(null)) {
             if(quantifierCheck(e)){
                 Expression skolemized = skolemize(e);
-                Expression noQuantifiers = dropForallQuantifiers(skolemized);
-                if(!noQuantifiers.equals(null)){
-                    return ConjunctionCreatorVisitor.getInstance().apply(noQuantifiers, null);
+                if(!skolemized.equals(null)){
+                    return ConjunctionCreatorVisitor.getInstance().apply(skolemized, null);
                 } else {
                     throw new UnsupportedOperationException("Handling of Quantifiers failed!");
                 }
@@ -72,9 +71,8 @@ public class NormalizationUtil {
         if (!nnf.equals(null)) {
             if(quantifierCheck(e)){
                 Expression skolemized = skolemize(e);
-                Expression noQuantifiers = dropForallQuantifiers(skolemized);
-                if(!noQuantifiers.equals(null)){
-                    return DisjunctionCreatorVisitor.getInstance().apply(noQuantifiers, null);
+                if(!skolemized.equals(null)){
+                    return DisjunctionCreatorVisitor.getInstance().apply(skolemized, null);
                 } else {
                     throw new UnsupportedOperationException("Handling of Quantifiers failed!");
                 }
@@ -122,6 +120,10 @@ public class NormalizationUtil {
         //alternativ:
         //return e;
         throw new UnsupportedOperationException("Negations were not pushed!");
+    }
+
+    public static <E> Expression<E> simpleNegationPush(Expression<E> e) {
+        return NegatingVisitor.getInstance().apply(e, false);
     }
 
     public static <E> Expression<E> pushNegationModified(Expression<E> e) {
@@ -209,27 +211,16 @@ public class NormalizationUtil {
         Expression unique = renameAllBoundVars(e);
         Expression mini = miniScope(unique);
         List<Variable<?>> data = new ArrayList<>();
+        //return SkolemizationVisitor.getInstance().apply(e, data);
         return SkolemizationVisitor.getInstance().apply(mini, data);
     }
 
     public static <E> Expression<E> skolemizeTest(Expression<E> e) {
-        Expression unique = renameAllBoundVars(e);
-        Expression mini = miniScopeTest(unique);
+        Expression nnf = pushNegation(e);
+        Expression unique = renameAllBoundVars(nnf);
+        Expression mini = miniScope(unique);
         List<Variable<?>> data = new ArrayList<>();
         return SkolemizationVisitor.getInstance().apply(mini, data);
-    }
-
-    public static <E> Expression<E> dropForallQuantifiers(Expression<E> e) {
-        return ForallRemoverVisitor.getInstance().apply(e, null);
-    }
-
-    public static <E> Expression<E> removeQuantifiers(Expression<E> e) {
-        Expression nnf = pushNegation(e);
-
-        Expression skolemized = skolemize(nnf);
-        Expression noQuantifiers = dropForallQuantifiers(skolemized);
-
-        return noQuantifiers;
     }
 
     public static Function<String, String> renameBoundVariables(QuantifierExpression q, int[] id, Collection<Variable<?>> freeVars, HashMap<String, String> renamingMap) {

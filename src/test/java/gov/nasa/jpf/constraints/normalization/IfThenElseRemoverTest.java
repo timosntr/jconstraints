@@ -27,6 +27,7 @@ import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.types.BuiltinTypes;
+import gov.nasa.jpf.constraints.util.ExpressionUtil;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertEquals;
@@ -34,7 +35,11 @@ import static org.testng.Assert.assertEquals;
 public class IfThenElseRemoverTest {
 
     Variable<Boolean> b = Variable.create(BuiltinTypes.BOOL, "b");
+    Variable<Boolean> b2 = Variable.create(BuiltinTypes.BOOL, "b2");
     Variable<Integer> x = Variable.create(BuiltinTypes.SINT32, "x");
+    Variable<Integer> y = Variable.create(BuiltinTypes.SINT32, "y");
+    Variable<Integer> p = Variable.create(BuiltinTypes.SINT32, "p");
+    Variable<Integer> q = Variable.create(BuiltinTypes.SINT32, "q");
     Constant<Integer> c1 = Constant.create(BuiltinTypes.SINT32, 1);
     Constant<Integer> c2 = Constant.create(BuiltinTypes.SINT32, 2);
     Expression e1 = NumericBooleanExpression.create(x, NumericComparator.EQ, c1);
@@ -60,6 +65,21 @@ public class IfThenElseRemoverTest {
         Expression<Boolean> result = (Expression<Boolean>) nestedIte.accept(IfThenElseRemoverVisitor.getInstance(), null);
 
         assertEquals(result, iteFree2);
+    }
+
+    @Test(groups = {"normalization"})
+    public void numericIfThenElseTest() {
+        Expression<Boolean> compound = NumericBooleanExpression.create(
+                IfThenElse.create(b, x, y),
+                NumericComparator.EQ,
+                NumericCompound.create(
+                        UnaryMinus.create(c1),
+                        NumericOperator.PLUS,
+                        IfThenElse.create(b2, p, q)));
+
+        Expression<Boolean> result = NormalizationUtil.eliminateIfThenElse(compound);
+
+        System.out.println(result);
     }
 
 }
