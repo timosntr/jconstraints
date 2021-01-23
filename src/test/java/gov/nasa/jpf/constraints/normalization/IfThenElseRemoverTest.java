@@ -82,4 +82,19 @@ public class IfThenElseRemoverTest {
         System.out.println(result);
     }
 
+    @Test(groups = {"normalization"})
+    public void numericIfThenElseTest2() {
+        Expression<Boolean> compound = NumericBooleanExpression.create(
+                IfThenElse.create(b, IfThenElse.create(b, x, y), y),
+                NumericComparator.EQ,
+                NumericCompound.create(
+                        IfThenElse.create(b2, p, q),
+                        NumericOperator.PLUS,
+                        IfThenElse.create(b2, p, q)));
+
+        Expression<Boolean> result = NormalizationUtil.eliminateIfThenElse(compound);
+
+        System.out.println(result);
+    }
+
 }

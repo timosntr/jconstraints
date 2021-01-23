@@ -30,6 +30,9 @@ import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
 import gov.nasa.jpf.constraints.util.ExpressionUtil;
 import org.apache.commons.math3.analysis.function.Exp;
 
+//only removes IfThenElse Expressions up to the first level of NumericCompounds;
+//an IfThenElse in an IfThenElse in a NumericBooleanExpression is not removed
+//not sure yet how to remove them from deeper levels properly
 public class IfThenElseRemoverVisitor extends
         DuplicatingVisitor<Void> {
 
@@ -57,6 +60,7 @@ public class IfThenElseRemoverVisitor extends
 
             return result;
         } else {
+            //a numeric IfThenElse in a numeric IfThenElse will return here unflattened
             return expr;
         }
 
@@ -89,6 +93,7 @@ public class IfThenElseRemoverVisitor extends
     @Override
     public Expression<?> visit(NumericBooleanExpression n, Void data) {
         //Todo: not optimized for cnf yet, probably too expensive
+        //TODO: handle inner IfThenElse?
         //visit first -> inner ItEs can be hopefully flattened
         Expression leftChild = visit(n.getLeft(), data);
         Expression rightChild = visit(n.getRight(), data);
@@ -113,16 +118,12 @@ public class IfThenElseRemoverVisitor extends
             Expression rightThenExpression = ((IfThenElse<?>) rightChild).getThen();
             Expression rightElseExpression = ((IfThenElse<?>) rightChild).getElse();
 
-            Expression part1 = PropositionalCompound.create(leftIfCondition, LogicalOperator.AND, PropositionalCompound.create(rightIfCondition, LogicalOperator.AND,
-                    NumericBooleanExpression.create(leftThenExpression, comparator, rightThenExpression)));
-            Expression part2 = PropositionalCompound.create(leftIfCondition, LogicalOperator.AND, PropositionalCompound.create(Negation.create(rightIfCondition), LogicalOperator.AND,
-                    NumericBooleanExpression.create(leftThenExpression, comparator, rightElseExpression)));
-            Expression part3 = PropositionalCompound.create(Negation.create(leftIfCondition), LogicalOperator.AND, PropositionalCompound.create(rightIfCondition, LogicalOperator.AND,
-                    NumericBooleanExpression.create(leftElseExpression, comparator, rightThenExpression)));
-            Expression part4 = PropositionalCompound.create(Negation.create(leftIfCondition), LogicalOperator.AND, PropositionalCompound.create(Negation.create(rightIfCondition), LogicalOperator.AND,
-                    NumericBooleanExpression.create(leftElseExpression, comparator, rightElseExpression)));
+            Expression part1 = ExpressionUtil.and(leftIfCondition, rightIfCondition, NumericBooleanExpression.create(leftThenExpression, comparator, rightThenExpression));
+            Expression part2 = ExpressionUtil.and(leftIfCondition, Negation.create(rightIfCondition), NumericBooleanExpression.create(leftThenExpression, comparator, rightElseExpression));
+            Expression part3 = ExpressionUtil.and(Negation.create(leftIfCondition), rightIfCondition, NumericBooleanExpression.create(leftElseExpression, comparator, rightThenExpression));
+            Expression part4 = ExpressionUtil.and(Negation.create(leftIfCondition), Negation.create(rightIfCondition), NumericBooleanExpression.create(leftElseExpression, comparator, rightElseExpression));
 
-            Expression result = PropositionalCompound.create(part1, LogicalOperator.OR, PropositionalCompound.create(part2, LogicalOperator.OR, PropositionalCompound.create(part3, LogicalOperator.OR, part4)));
+            Expression result = ExpressionUtil.or(part1, part2, part3, part4);
             return result;
         }
 
@@ -134,7 +135,7 @@ public class IfThenElseRemoverVisitor extends
             Expression elseExpression = ((IfThenElse<?>) leftChild).getElse();
 
             if(!rightChildIsNum){
-                Expression result = ExpressionUtil.or(
+                Expression<Boolean> result = ExpressionUtil.or(
                         ExpressionUtil.and(ifCondition, NumericBooleanExpression.create(thenExpression, comparator, rightChild)),
                         ExpressionUtil.and(Negation.create(ifCondition), NumericBooleanExpression.create(elseExpression, comparator, rightChild)));
                 return result;
@@ -147,7 +148,7 @@ public class IfThenElseRemoverVisitor extends
                 boolean rightRightIsIte = rightRight instanceof IfThenElse;
 
                 if(!rightLeftIsIte && !rightRightIsIte){
-                    Expression result = ExpressionUtil.or(
+                    Expression<Boolean> result = ExpressionUtil.or(
                             ExpressionUtil.and(ifCondition, NumericBooleanExpression.create(thenExpression, comparator, rightChild)),
                             ExpressionUtil.and(Negation.create(ifCondition), NumericBooleanExpression.create(elseExpression, comparator, rightChild)));
                     return result;
@@ -166,13 +167,12 @@ public class IfThenElseRemoverVisitor extends
                     Expression comparatorPart3 = NumericBooleanExpression.create(elseExpression, comparator, numericPart1);
                     Expression comparatorPart4 = NumericBooleanExpression.create(elseExpression, comparator, numericPart2);
 
-                    Expression propositionalPart1 = ExpressionUtil.and(ifCondition, ExpressionUtil.and(ifRight, comparatorPart1));
-                    Expression propositionalPart2 = ExpressionUtil.and(ifCondition, ExpressionUtil.and(Negation.create(ifRight), comparatorPart2));
-                    Expression propositionalPart3 = ExpressionUtil.and(Negation.create(ifCondition), ExpressionUtil.and(ifRight, comparatorPart3));
-                    Expression propositionalPart4 = ExpressionUtil.and(Negation.create(ifCondition), ExpressionUtil.and(Negation.create(ifRight), comparatorPart4));
+                    Expression propositionalPart1 = ExpressionUtil.and(ifCondition, ifRight, comparatorPart1);
+                    Expression propositionalPart2 = ExpressionUtil.and(ifCondition, Negation.create(ifRight), comparatorPart2);
+                    Expression propositionalPart3 = ExpressionUtil.and(Negation.create(ifCondition), ifRight, comparatorPart3);
+                    Expression propositionalPart4 = ExpressionUtil.and(Negation.create(ifCondition), Negation.create(ifRight), comparatorPart4);
 
-                    Expression result = ExpressionUtil.or(
-                            propositionalPart1, ExpressionUtil.or(propositionalPart2, ExpressionUtil.or(propositionalPart3, propositionalPart4)));
+                    Expression<Boolean> result = ExpressionUtil.or(propositionalPart1, propositionalPart2, propositionalPart3, propositionalPart4);
                     return result;
                 }
 
@@ -189,13 +189,12 @@ public class IfThenElseRemoverVisitor extends
                     Expression comparatorPart3 = NumericBooleanExpression.create(elseExpression, comparator, numericPart1);
                     Expression comparatorPart4 = NumericBooleanExpression.create(elseExpression, comparator, numericPart2);
 
-                    Expression propositionalPart1 = ExpressionUtil.and(ifCondition, ExpressionUtil.and(ifLeft, comparatorPart1));
-                    Expression propositionalPart2 = ExpressionUtil.and(ifCondition, ExpressionUtil.and(Negation.create(ifLeft), comparatorPart2));
-                    Expression propositionalPart3 = ExpressionUtil.and(Negation.create(ifCondition), ExpressionUtil.and(ifLeft, comparatorPart3));
-                    Expression propositionalPart4 = ExpressionUtil.and(Negation.create(ifCondition), ExpressionUtil.and(Negation.create(ifLeft), comparatorPart4));
+                    Expression propositionalPart1 = ExpressionUtil.and(ifCondition, ifLeft, comparatorPart1);
+                    Expression propositionalPart2 = ExpressionUtil.and(ifCondition, Negation.create(ifLeft), comparatorPart2);
+                    Expression propositionalPart3 = ExpressionUtil.and(Negation.create(ifCondition), ifLeft, comparatorPart3);
+                    Expression propositionalPart4 = ExpressionUtil.and(Negation.create(ifCondition), Negation.create(ifLeft), comparatorPart4);
 
-                    Expression result = ExpressionUtil.or(
-                            propositionalPart1, ExpressionUtil.or(propositionalPart2, ExpressionUtil.or(propositionalPart3, propositionalPart4)));
+                    Expression<Boolean> result = ExpressionUtil.or(propositionalPart1, propositionalPart2, propositionalPart3, propositionalPart4);
                     return result;
                 }
 
@@ -222,19 +221,18 @@ public class IfThenElseRemoverVisitor extends
                     Expression comparatorPart7 = NumericBooleanExpression.create(elseExpression, comparator, numericPart3);
                     Expression comparatorPart8 = NumericBooleanExpression.create(elseExpression, comparator, numericPart4);
 
-                    Expression propositionalPart1 = ExpressionUtil.and(ifCondition, ExpressionUtil.and(ifLeft, ExpressionUtil.and(ifRight, comparatorPart1)));
-                    Expression propositionalPart2 = ExpressionUtil.and(ifCondition, ExpressionUtil.and(ifLeft, ExpressionUtil.and(Negation.create(ifRight), comparatorPart2)));
-                    Expression propositionalPart3 = ExpressionUtil.and(ifCondition, ExpressionUtil.and(Negation.create(ifLeft), ExpressionUtil.and(ifRight, comparatorPart3)));
-                    Expression propositionalPart4 = ExpressionUtil.and(ifCondition, ExpressionUtil.and(Negation.create(ifLeft), ExpressionUtil.and(Negation.create(ifRight), comparatorPart4)));
-                    Expression propositionalPart5 = ExpressionUtil.and(Negation.create(ifCondition), ExpressionUtil.and(ifLeft, ExpressionUtil.and(ifRight, comparatorPart5)));
-                    Expression propositionalPart6 = ExpressionUtil.and(Negation.create(ifCondition), ExpressionUtil.and(ifLeft, ExpressionUtil.and(Negation.create(ifRight), comparatorPart6)));
-                    Expression propositionalPart7 = ExpressionUtil.and(Negation.create(ifCondition), ExpressionUtil.and(Negation.create(ifLeft), ExpressionUtil.and(ifRight, comparatorPart7)));
-                    Expression propositionalPart8 = ExpressionUtil.and(Negation.create(ifCondition), ExpressionUtil.and(Negation.create(ifLeft), ExpressionUtil.and(Negation.create(ifRight), comparatorPart8)));
+                    Expression propositionalPart1 = ExpressionUtil.and(ifCondition, ifLeft, ifRight, comparatorPart1);
+                    Expression propositionalPart2 = ExpressionUtil.and(ifCondition, ifLeft, Negation.create(ifRight), comparatorPart2);
+                    Expression propositionalPart3 = ExpressionUtil.and(ifCondition, Negation.create(ifLeft), ifRight, comparatorPart3);
+                    Expression propositionalPart4 = ExpressionUtil.and(ifCondition, Negation.create(ifLeft), Negation.create(ifRight), comparatorPart4);
+                    Expression propositionalPart5 = ExpressionUtil.and(Negation.create(ifCondition), ifLeft, ifRight, comparatorPart5);
+                    Expression propositionalPart6 = ExpressionUtil.and(Negation.create(ifCondition), ifLeft, Negation.create(ifRight), comparatorPart6);
+                    Expression propositionalPart7 = ExpressionUtil.and(Negation.create(ifCondition), Negation.create(ifLeft), ifRight, comparatorPart7);
+                    Expression propositionalPart8 = ExpressionUtil.and(Negation.create(ifCondition), Negation.create(ifLeft), Negation.create(ifRight), comparatorPart8);
 
-                    Expression result = ExpressionUtil.or(
-                            propositionalPart1, ExpressionUtil.or(propositionalPart2, ExpressionUtil.or(propositionalPart3,
-                                    ExpressionUtil.or(propositionalPart4, ExpressionUtil.or(propositionalPart5, ExpressionUtil.or(propositionalPart6,
-                                            ExpressionUtil.or(propositionalPart7, propositionalPart8)))))));
+                    Expression<Boolean> result = ExpressionUtil.or(propositionalPart1, propositionalPart2, propositionalPart3,
+                                    propositionalPart4, propositionalPart5, propositionalPart6,
+                                            propositionalPart7, propositionalPart8);
                     return result;
                 }
             }
@@ -259,7 +257,7 @@ public class IfThenElseRemoverVisitor extends
                 boolean leftRightIsIte = leftRight instanceof IfThenElse;
 
                 if(!leftLeftIsIte && !leftRightIsIte){
-                    Expression result = ExpressionUtil.or(
+                    Expression<Boolean> result = ExpressionUtil.or(
                             ExpressionUtil.and(ifCondition, NumericBooleanExpression.create(thenExpression, comparator, rightChild)),
                             ExpressionUtil.and(Negation.create(ifCondition), NumericBooleanExpression.create(elseExpression, comparator, rightChild)));
                     return result;
@@ -278,13 +276,12 @@ public class IfThenElseRemoverVisitor extends
                     Expression comparatorPart3 = NumericBooleanExpression.create(numericPart1, comparator, elseExpression);
                     Expression comparatorPart4 = NumericBooleanExpression.create(numericPart2, comparator, elseExpression);
 
-                    Expression propositionalPart1 = ExpressionUtil.and(ifCondition, ExpressionUtil.and(ifRight, comparatorPart1));
-                    Expression propositionalPart2 = ExpressionUtil.and(ifCondition, ExpressionUtil.and(Negation.create(ifRight), comparatorPart2));
-                    Expression propositionalPart3 = ExpressionUtil.and(Negation.create(ifCondition), ExpressionUtil.and(ifRight, comparatorPart3));
-                    Expression propositionalPart4 = ExpressionUtil.and(Negation.create(ifCondition), ExpressionUtil.and(Negation.create(ifRight), comparatorPart4));
+                    Expression propositionalPart1 = ExpressionUtil.and(ifCondition, ifRight, comparatorPart1);
+                    Expression propositionalPart2 = ExpressionUtil.and(ifCondition, Negation.create(ifRight), comparatorPart2);
+                    Expression propositionalPart3 = ExpressionUtil.and(Negation.create(ifCondition), ifRight, comparatorPart3);
+                    Expression propositionalPart4 = ExpressionUtil.and(Negation.create(ifCondition), Negation.create(ifRight), comparatorPart4);
 
-                    Expression result = ExpressionUtil.or(
-                            propositionalPart1, ExpressionUtil.or(propositionalPart2, ExpressionUtil.or(propositionalPart3, propositionalPart4)));
+                    Expression<Boolean> result = ExpressionUtil.or(propositionalPart1, propositionalPart2, propositionalPart3, propositionalPart4);
                     return result;
                 }
 
@@ -301,13 +298,12 @@ public class IfThenElseRemoverVisitor extends
                     Expression comparatorPart3 = NumericBooleanExpression.create(numericPart1, comparator, elseExpression);
                     Expression comparatorPart4 = NumericBooleanExpression.create(numericPart2, comparator, elseExpression);
 
-                    Expression propositionalPart1 = ExpressionUtil.and(ifCondition, ExpressionUtil.and(ifLeft, comparatorPart1));
-                    Expression propositionalPart2 = ExpressionUtil.and(ifCondition, ExpressionUtil.and(Negation.create(ifLeft), comparatorPart2));
-                    Expression propositionalPart3 = ExpressionUtil.and(Negation.create(ifCondition), ExpressionUtil.and(ifLeft, comparatorPart3));
-                    Expression propositionalPart4 = ExpressionUtil.and(Negation.create(ifCondition), ExpressionUtil.and(Negation.create(ifLeft), comparatorPart4));
+                    Expression propositionalPart1 = ExpressionUtil.and(ifCondition, ifLeft, comparatorPart1);
+                    Expression propositionalPart2 = ExpressionUtil.and(ifCondition, Negation.create(ifLeft), comparatorPart2);
+                    Expression propositionalPart3 = ExpressionUtil.and(Negation.create(ifCondition), ifLeft, comparatorPart3);
+                    Expression propositionalPart4 = ExpressionUtil.and(Negation.create(ifCondition), Negation.create(ifLeft), comparatorPart4);
 
-                    Expression result = ExpressionUtil.or(
-                            propositionalPart1, ExpressionUtil.or(propositionalPart2, ExpressionUtil.or(propositionalPart3, propositionalPart4)));
+                    Expression<Boolean> result = ExpressionUtil.or(propositionalPart1, propositionalPart2, propositionalPart3, propositionalPart4);
                     return result;
 
                 }
@@ -335,14 +331,14 @@ public class IfThenElseRemoverVisitor extends
                     Expression comparatorPart7 = NumericBooleanExpression.create(numericPart3, comparator, elseExpression);
                     Expression comparatorPart8 = NumericBooleanExpression.create(numericPart4, comparator, elseExpression);
 
-                    Expression propositionalPart1 = ExpressionUtil.and(ifCondition, ExpressionUtil.and(ifLeft, ExpressionUtil.and(ifRight, comparatorPart1)));
-                    Expression propositionalPart2 = ExpressionUtil.and(ifCondition, ExpressionUtil.and(ifLeft, ExpressionUtil.and(Negation.create(ifRight), comparatorPart2)));
-                    Expression propositionalPart3 = ExpressionUtil.and(ifCondition, ExpressionUtil.and(Negation.create(ifLeft), ExpressionUtil.and(ifRight, comparatorPart3)));
-                    Expression propositionalPart4 = ExpressionUtil.and(ifCondition, ExpressionUtil.and(Negation.create(ifLeft), ExpressionUtil.and(Negation.create(ifRight), comparatorPart4)));
-                    Expression propositionalPart5 = ExpressionUtil.and(Negation.create(ifCondition), ExpressionUtil.and(ifLeft, ExpressionUtil.and(ifRight, comparatorPart5)));
-                    Expression propositionalPart6 = ExpressionUtil.and(Negation.create(ifCondition), ExpressionUtil.and(ifLeft, ExpressionUtil.and(Negation.create(ifRight), comparatorPart6)));
-                    Expression propositionalPart7 = ExpressionUtil.and(Negation.create(ifCondition), ExpressionUtil.and(Negation.create(ifLeft), ExpressionUtil.and(ifRight, comparatorPart7)));
-                    Expression propositionalPart8 = ExpressionUtil.and(Negation.create(ifCondition), ExpressionUtil.and(Negation.create(ifLeft), ExpressionUtil.and(Negation.create(ifRight), comparatorPart8)));
+                    Expression propositionalPart1 = ExpressionUtil.and(ifCondition, ifLeft, ifRight, comparatorPart1);
+                    Expression propositionalPart2 = ExpressionUtil.and(ifCondition, ifLeft, Negation.create(ifRight), comparatorPart2);
+                    Expression propositionalPart3 = ExpressionUtil.and(ifCondition, Negation.create(ifLeft), ifRight, comparatorPart3);
+                    Expression propositionalPart4 = ExpressionUtil.and(ifCondition, Negation.create(ifLeft), Negation.create(ifRight), comparatorPart4);
+                    Expression propositionalPart5 = ExpressionUtil.and(Negation.create(ifCondition), ifLeft, ifRight, comparatorPart5);
+                    Expression propositionalPart6 = ExpressionUtil.and(Negation.create(ifCondition), ifLeft, Negation.create(ifRight), comparatorPart6);
+                    Expression propositionalPart7 = ExpressionUtil.and(Negation.create(ifCondition), Negation.create(ifLeft), ifRight, comparatorPart7);
+                    Expression propositionalPart8 = ExpressionUtil.and(Negation.create(ifCondition), Negation.create(ifLeft), Negation.create(ifRight), comparatorPart8);
 
                     Expression result = ExpressionUtil.or(propositionalPart1, propositionalPart2, propositionalPart3, propositionalPart4,
                             propositionalPart5, propositionalPart6, propositionalPart7, propositionalPart8);
@@ -775,7 +771,7 @@ public class IfThenElseRemoverVisitor extends
 
     @Override
     public Expression<?> visit(NumericCompound n, Void data) {
-        return n;
+        return super.visit(n, data);
     }
 
     @Override
