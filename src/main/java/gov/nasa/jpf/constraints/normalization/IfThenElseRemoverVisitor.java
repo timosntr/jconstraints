@@ -24,6 +24,7 @@
 package gov.nasa.jpf.constraints.normalization;
 
 import gov.nasa.jpf.constraints.api.Expression;
+import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.types.BuiltinTypes;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
@@ -54,42 +55,19 @@ public class IfThenElseRemoverVisitor extends
 
             //visit again for finding nested IfThenElse
             Expression result = PropositionalCompound.create(
-                    (Expression<Boolean>) visit(firstPart, data),
+                    (Expression<Boolean>) firstPart,
                     LogicalOperator.AND,
-                    visit(secondPart, data));
+                    secondPart);
 
             return result;
         } else {
             //a numeric IfThenElse in a numeric IfThenElse will return here unflattened
             return expr;
         }
-
-        //ToDo: this is an older version, which showed some outliers
-        // which are not existing anymore in the version above -> investigation needed!
-
-        /*
-        * Expression ifCond = expr.getIf();
-        Expression thenExpr = expr.getThen();
-        Expression elseExpr = expr.getElse();
-
-        assert ifCond.getType().equals(BuiltinTypes.BOOL);
-        if(thenExpr.getType().equals(BuiltinTypes.BOOL) && elseExpr.getType().equals(BuiltinTypes.BOOL)){
-            Expression firstPart = PropositionalCompound.create(Negation.create(ifCond), LogicalOperator.OR, thenExpr);
-            Expression secondPart = PropositionalCompound.create(ifCond, LogicalOperator.OR, elseExpr);
-
-            //visit again for finding nested IfThenElse
-            Expression result = PropositionalCompound.create(
-                    (Expression<Boolean>) visit(firstPart, data),
-                    LogicalOperator.AND,
-                    visit(secondPart, data));
-
-            return result;
-        } else {
-            return expr;
-        }
-        * */
     }
 
+    //ToDo: something is wrong -> but fails first together with renaming
+    // in z3 (after nnf in cvc4)
     @Override
     public Expression<?> visit(NumericBooleanExpression n, Void data) {
         //Todo: not optimized for cnf yet, probably too expensive
@@ -101,8 +79,13 @@ public class IfThenElseRemoverVisitor extends
 
         boolean leftChildIsNum = leftChild instanceof NumericCompound;
         boolean rightChildIsNum = rightChild instanceof NumericCompound;
+        boolean leftChildIsVar = leftChild instanceof Variable;
+        boolean rightChildIsVar = rightChild instanceof Variable;
+        boolean leftChildIsConst = leftChild instanceof Constant;
+        boolean rightChildIsConst = rightChild instanceof Constant;
         boolean leftChildIsIte = leftChild instanceof IfThenElse;
         boolean rightChildIsIte = rightChild instanceof IfThenElse;
+
 
         if(!leftChildIsNum && !rightChildIsNum && !leftChildIsIte && !rightChildIsIte){
             return n;
@@ -346,9 +329,158 @@ public class IfThenElseRemoverVisitor extends
                 }
             }
         }
+        //TODO: in this block some aggregations are possible
+        if(!leftChildIsIte && !rightChildIsIte){
+            if(leftChildIsNum && !rightChildIsNum){
+                Expression leftLeft = ((NumericCompound<?>) leftChild).getLeft();
+                NumericOperator opLeft = ((NumericCompound<?>) leftChild).getOperator();
+                Expression leftRight = ((NumericCompound<?>) leftChild).getRight();
+
+                boolean leftLeftIsIte = leftLeft instanceof IfThenElse;
+                boolean leftRightIsIte = leftRight instanceof IfThenElse;
+
+                if(!leftLeftIsIte && !leftRightIsIte){
+                    return n;
+                }
+                if(leftLeftIsIte && !leftRightIsIte){
+                    Expression ifLeftLeft = ((IfThenElse<?>) leftLeft).getIf();
+                    Expression thenLeftLeft = ((IfThenElse<?>) leftLeft).getThen();
+                    Expression elseLeftLeft = ((IfThenElse<?>) leftLeft).getElse();
+
+                    Expression numericPart5 = NumericCompound.create(thenLeftLeft, opLeft, leftRight);
+                    Expression numericPart6 = NumericCompound.create(elseLeftLeft, opLeft, leftRight);
+
+                    Expression comparatorPart1 = NumericBooleanExpression.create(numericPart5, comparator, rightChild);
+                    Expression comparatorPart2 = NumericBooleanExpression.create(numericPart6, comparator, rightChild);
+
+                    Expression propositionalPart1 = ExpressionUtil.and(ifLeftLeft, comparatorPart1);
+                    Expression propositionalPart2 = ExpressionUtil.and(Negation.create(ifLeftLeft), comparatorPart2);
+
+                    Expression result = ExpressionUtil.or(propositionalPart1, propositionalPart2);
+                    return result;
+
+                }
+                if(!leftLeftIsIte && leftRightIsIte){
+                    Expression ifLeftRight = ((IfThenElse<?>) leftRight).getIf();
+                    Expression thenLeftRight = ((IfThenElse<?>) leftRight).getThen();
+                    Expression elseLeftRight = ((IfThenElse<?>) leftRight).getElse();
+
+                    Expression numericPart5 = NumericCompound.create(leftLeft, opLeft, thenLeftRight);
+                    Expression numericPart6 = NumericCompound.create(leftLeft, opLeft, elseLeftRight);
+
+                    Expression comparatorPart1 = NumericBooleanExpression.create(numericPart5, comparator, rightChild);
+                    Expression comparatorPart2 = NumericBooleanExpression.create(numericPart6, comparator, rightChild);
+
+                    Expression propositionalPart1 = ExpressionUtil.and(ifLeftRight, comparatorPart1);
+                    Expression propositionalPart2 = ExpressionUtil.and(Negation.create(ifLeftRight), comparatorPart2);
+
+                    Expression result = ExpressionUtil.or(propositionalPart1, propositionalPart2);
+                    return result;
+                }
+                if(leftLeftIsIte && leftRightIsIte){
+                    Expression ifLeftLeft = ((IfThenElse<?>) leftLeft).getIf();
+                    Expression thenLeftLeft = ((IfThenElse<?>) leftLeft).getThen();
+                    Expression elseLeftLeft = ((IfThenElse<?>) leftLeft).getElse();
+                    Expression ifLeftRight = ((IfThenElse<?>) leftRight).getIf();
+                    Expression thenLeftRight = ((IfThenElse<?>) leftRight).getThen();
+                    Expression elseLeftRight = ((IfThenElse<?>) leftRight).getElse();
+
+                    Expression numericPart1 = NumericCompound.create(thenLeftLeft, opLeft, thenLeftRight);
+                    Expression numericPart2 = NumericCompound.create(thenLeftLeft, opLeft, elseLeftRight);
+                    Expression numericPart3 = NumericCompound.create(elseLeftLeft, opLeft, thenLeftRight);
+                    Expression numericPart4 = NumericCompound.create(elseLeftLeft, opLeft, elseLeftRight);
+
+                    Expression comparatorPart1 = NumericBooleanExpression.create(numericPart1, comparator, rightChild);
+                    Expression comparatorPart2 = NumericBooleanExpression.create(numericPart2, comparator, rightChild);
+                    Expression comparatorPart3 = NumericBooleanExpression.create(numericPart3, comparator, rightChild);
+                    Expression comparatorPart4 = NumericBooleanExpression.create(numericPart4, comparator, rightChild);
+
+                    Expression propositionalPart1 = ExpressionUtil.and(ifLeftLeft, ifLeftRight, comparatorPart1);
+                    Expression propositionalPart2 = ExpressionUtil.and(ifLeftLeft, Negation.create(ifLeftRight), comparatorPart2);
+                    Expression propositionalPart3 = ExpressionUtil.and(Negation.create(ifLeftLeft), ifLeftRight, comparatorPart3);
+                    Expression propositionalPart4 = ExpressionUtil.and(Negation.create(ifLeftLeft), Negation.create(ifLeftRight), comparatorPart4);
+
+                    Expression result = ExpressionUtil.or(propositionalPart1, propositionalPart2, propositionalPart3, propositionalPart4);
+                    return result;
+                }
+            }
+            if(!leftChildIsNum && rightChildIsNum){
+                Expression rightLeft = ((NumericCompound<?>) rightChild).getLeft();
+                NumericOperator opRight = ((NumericCompound<?>) rightChild).getOperator();
+                Expression rightRight = ((NumericCompound<?>) rightChild).getRight();
+
+                boolean rightLeftIsIte = rightLeft instanceof IfThenElse;
+                boolean rightRightIsIte = rightRight instanceof IfThenElse;
+
+                if(!rightLeftIsIte && !rightRightIsIte){
+                    return n;
+                }
+                if(rightLeftIsIte && !rightRightIsIte){
+                    Expression ifRightLeft = ((IfThenElse<?>) rightLeft).getIf();
+                    Expression thenRightLeft = ((IfThenElse<?>) rightLeft).getThen();
+                    Expression elseRightLeft = ((IfThenElse<?>) rightLeft).getElse();
+
+                    Expression numericPart5 = NumericCompound.create(thenRightLeft, opRight, rightRight);
+                    Expression numericPart6 = NumericCompound.create(elseRightLeft, opRight, rightRight);
+
+                    Expression comparatorPart1 = NumericBooleanExpression.create(leftChild, comparator, numericPart5);
+                    Expression comparatorPart2 = NumericBooleanExpression.create(leftChild, comparator, numericPart6);
+
+                    Expression propositionalPart1 = ExpressionUtil.and(ifRightLeft, comparatorPart1);
+                    Expression propositionalPart2 = ExpressionUtil.and(Negation.create(ifRightLeft), comparatorPart2);
+
+                    Expression result = ExpressionUtil.or(propositionalPart1, propositionalPart2);
+                    return result;
+                }
+                if(!rightLeftIsIte && rightRightIsIte){
+                    Expression ifRightRight = ((IfThenElse<?>) rightRight).getIf();
+                    Expression thenRightRight = ((IfThenElse<?>) rightRight).getThen();
+                    Expression elseRightRight = ((IfThenElse<?>) rightRight).getElse();
+
+                    Expression numericPart5 = NumericCompound.create(rightLeft, opRight, thenRightRight);
+                    Expression numericPart6 = NumericCompound.create(rightLeft, opRight, elseRightRight);
+
+                    Expression comparatorPart1 = NumericBooleanExpression.create(leftChild, comparator, numericPart5);
+                    Expression comparatorPart2 = NumericBooleanExpression.create(leftChild, comparator, numericPart6);
+
+                    Expression propositionalPart1 = ExpressionUtil.and(ifRightRight, comparatorPart1);
+                    Expression propositionalPart2 = ExpressionUtil.and(Negation.create(ifRightRight), comparatorPart2);
+
+                    Expression result = ExpressionUtil.or(propositionalPart1, propositionalPart2);
+                    return result;
+                }
+                if(rightLeftIsIte && rightRightIsIte){
+                    Expression ifRightLeft = ((IfThenElse<?>) rightLeft).getIf();
+                    Expression thenRightLeft = ((IfThenElse<?>) rightLeft).getThen();
+                    Expression elseRightLeft = ((IfThenElse<?>) rightLeft).getElse();
+                    Expression ifRightRight = ((IfThenElse<?>) rightRight).getIf();
+                    Expression thenRightRight = ((IfThenElse<?>) rightRight).getThen();
+                    Expression elseRightRight = ((IfThenElse<?>) rightRight).getElse();
+
+                    Expression numericPart1 = NumericCompound.create(thenRightLeft, opRight, thenRightRight);
+                    Expression numericPart2 = NumericCompound.create(thenRightLeft, opRight, elseRightRight);
+                    Expression numericPart3 = NumericCompound.create(elseRightLeft, opRight, thenRightRight);
+                    Expression numericPart4 = NumericCompound.create(elseRightLeft, opRight, elseRightRight);
+
+                    Expression comparatorPart1 = NumericBooleanExpression.create(leftChild, comparator, numericPart1);
+                    Expression comparatorPart2 = NumericBooleanExpression.create(leftChild, comparator, numericPart2);
+                    Expression comparatorPart3 = NumericBooleanExpression.create(leftChild, comparator, numericPart3);
+                    Expression comparatorPart4 = NumericBooleanExpression.create(leftChild, comparator, numericPart4);
+
+                    Expression propositionalPart1 = ExpressionUtil.and(ifRightLeft, ifRightRight, comparatorPart1);
+                    Expression propositionalPart2 = ExpressionUtil.and(ifRightLeft, Negation.create(ifRightRight), comparatorPart2);
+                    Expression propositionalPart3 = ExpressionUtil.and(Negation.create(ifRightLeft), ifRightRight, comparatorPart3);
+                    Expression propositionalPart4 = ExpressionUtil.and(Negation.create(ifRightLeft), Negation.create(ifRightRight), comparatorPart4);
+
+                    Expression result = ExpressionUtil.or(propositionalPart1, propositionalPart2, propositionalPart3, propositionalPart4);
+                    return result;
+                }
+
+            }
+        }
 
         //case: both children are NumericCompounds; they may contain further IfThenElses as children
-        assert rightChildIsNum && leftChildIsNum;
+        //assert rightChildIsNum && leftChildIsNum;
         Expression leftLeft = ((NumericCompound<?>) leftChild).getLeft();
         NumericOperator opLeft = ((NumericCompound<?>) leftChild).getOperator();
         Expression leftRight = ((NumericCompound<?>) leftChild).getRight();
@@ -777,7 +909,7 @@ public class IfThenElseRemoverVisitor extends
     @Override
     //Not needed if LetExpressionRemover is used beforehand
     public Expression<?> visit(LetExpression let, Void data) {
-        return super.visit(let.flattenLetExpression(), data);
+        return visit(let.flattenLetExpression(), data);
     }
 
     public <T> Expression<T> apply(Expression<T> expr, Void data) {

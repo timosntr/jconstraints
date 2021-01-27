@@ -180,6 +180,11 @@ public class NegatingVisitor extends
         Expression thenExpr = expr.getThen();
         Expression elseExpr = expr.getElse();
         if(shouldNegate){
+            /*if(thenExpr.getType().equals(BuiltinTypes.BOOL) && elseExpr.getType().equals(BuiltinTypes.BOOL)){
+                Expression newThen = visit(Negation.create(thenExpr), false);
+                Expression newElse = visit(Negation.create(elseExpr), false);
+                return IfThenElse.create(expr.getIf(), newThen, newElse);
+            }*/
             if(thenExpr.getType().equals(BuiltinTypes.BOOL) && elseExpr.getType().equals(BuiltinTypes.BOOL)){
                 Expression firstPart = PropositionalCompound.create(Negation.create(expr.getIf()), LogicalOperator.OR, thenExpr);
                 Expression secondPart = PropositionalCompound.create(expr.getIf(), LogicalOperator.OR, elseExpr);
@@ -192,6 +197,7 @@ public class NegatingVisitor extends
 
                 return visit(Negation.create(result), false);
             }
+            //TODO: assumption correct?
             //IfThenElse from NumericBooleanExpression or NumericCompound won't reach up to here
         }
 
@@ -208,19 +214,6 @@ public class NegatingVisitor extends
             return result;
         }
 
-        /*Expression result = expr.flattenIfThenElse();
-
-        if(shouldNegate){
-            if(result.getType().equals(BuiltinTypes.BOOL)){
-                return visit(Negation.create(result), false);
-            } else {
-                return
-                //ToDo: not sure if this is the right solution for IfThenElse with
-                // non-boolean typed children
-                Expression newIte = IfThenElse.create(expr.getIf(), Negation.create((Expression<Boolean>) expr.getThen()), Negation.create((Expression<Boolean>) expr.getElse()));
-                return visit(newIte, false);
-            }
-        }*/
         return visit(expr, false);
     }
 

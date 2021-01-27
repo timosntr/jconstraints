@@ -23,7 +23,6 @@
  */
 package gov.nasa.jpf.constraints.normalization;
 
-import com.google.common.base.Function;
 import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.*;
@@ -37,13 +36,16 @@ public class NormalizationUtil {
 
     //ToDo: further normalizing methods (order, dependencies...)
     //ToDo: normalize
+    //todo: add SMTLibExportVisitor
 
     //ToDo: fix skolemization
     public static <E> Expression<E> createCNF(Expression<E> e) {
-        Expression nnf = pushNegation(e);
+        Expression nnf = createNNF(e);
         if (!nnf.equals(null)) {
             if(quantifierCheck(e)){
-                Expression skolemized = skolemize(e);
+                Expression renamed = renameAllBoundVars(nnf);
+                Expression mini = miniScope(renamed);
+                Expression skolemized = skolemize(mini);
                 if(!skolemized.equals(null)){
                     return ConjunctionCreatorVisitor.getInstance().apply(skolemized, null);
                 } else {
@@ -58,19 +60,17 @@ public class NormalizationUtil {
     }
 
     public static <E> Expression<E> createCNFNoQuantorHandling(Expression<E> e) {
-        Expression nnf = pushNegation(e);
-        if (!nnf.equals(null)) {
-            return ConjunctionCreatorVisitor.getInstance().apply(nnf, null);
-        } else {
-            throw new UnsupportedOperationException("Creation of NNF failed, no CNF created!");
-        }
+        return ConjunctionCreatorVisitor.getInstance().apply(e, null);
     }
 
+    //nnf has to be created beforehand
     public static <E> Expression<E> createDNF(Expression<E> e) {
-        Expression nnf = pushNegation(e);
+        Expression nnf = createNNF(e);
         if (!nnf.equals(null)) {
             if(quantifierCheck(e)){
-                Expression skolemized = skolemize(e);
+                Expression renamed = renameAllBoundVars(nnf);
+                Expression mini = miniScope(renamed);
+                Expression skolemized = skolemize(mini);
                 if(!skolemized.equals(null)){
                     return DisjunctionCreatorVisitor.getInstance().apply(skolemized, null);
                 } else {
@@ -84,16 +84,12 @@ public class NormalizationUtil {
         }
     }
 
+    //nnf has to be created beforehand
     public static <E> Expression<E> createDNFNoQuantorHandling(Expression<E> e) {
-        Expression nnf = pushNegation(e);
-        if (!nnf.equals(null)) {
-            return DisjunctionCreatorVisitor.getInstance().apply(nnf, null);
-        } else {
-            throw new UnsupportedOperationException("Creation of NNF failed, no DNF created!");
-        }
+        return DisjunctionCreatorVisitor.getInstance().apply(e, null);
     }
 
-    public static <E> Expression<E> pushNegation(Expression<E> e) {
+    public static <E> Expression<E> createNNF(Expression<E> e) {
         //LetExpressions have to be flattened to get children
         Expression noLet = eliminateLetExpressions(e);
         if(!noLet.equals(null)) {
@@ -106,9 +102,9 @@ public class NormalizationUtil {
                         Expression noIte = eliminateIfThenElse(noXOR);
                         if(!noIte.equals(null)){
                             return NegatingVisitor.getInstance().apply(noIte, false);
+                        //return NegatingVisitor.getInstance().apply(noXOR, false);
                         } else {
                             System.out.println("eliminateIfThenElse failed!");
-                            return NegatingVisitor.getInstance().apply(noXOR, false);
                         }
                     }
                     System.out.println("eliminateXOR failed!");
@@ -117,8 +113,6 @@ public class NormalizationUtil {
             }
             System.out.println("eliminateEquivalence failed!");
         }
-        //alternativ:
-        //return e;
         throw new UnsupportedOperationException("Negations were not pushed!");
     }
 
@@ -178,71 +172,14 @@ public class NormalizationUtil {
         return MiniScopingVisitor.getInstance().apply(e, null);
     }
 
-    public static <E> Expression<E> miniScopeTest(Expression<E> e) {
-        Expression nnf = pushNegation(e);
-
-        return MiniScopingVisitor.getInstance().apply(nnf, null);
-    }
-
     public static <E> Expression<E> renameAllBoundVars(Expression<E> e) {
-        //Function<String, String> data = null;
-        //return RenameBoundVarVisitor.getInstance().apply(e, data);
         HashMap<String, String> data = new HashMap<>();
         return RenamingBoundVarVisitor.getInstance().apply(e, data);
     }
 
-    public static <E> Expression<E> renameAllBoundVarsTestV(Expression<E> e) {
-        //Function<String, String> data = null;
-        //return RenameBoundVarVisitor.getInstance().apply(e, data);
-        Expression nnf = pushNegation(e);
-        HashMap<String, String> data = new HashMap<>();
-        return RenamingBoundVarVisitor.getInstance().apply(nnf, data);
-    }
-
-    public static <E> Expression<E> miniAndRename(Expression<E> e) {
-        Expression renamed = renameAllBoundVarsTestV(e);
-        //Function<String, String> data = null;
-        //return RenameBoundVarVisitor.getInstance().apply(mini, data);
-        //HashMap<String, String> data = new HashMap<>();
-        return MiniScopingVisitor.getInstance().apply(renamed, null);
-    }
-
     public static <E> Expression<E> skolemize(Expression<E> e) {
-        Expression unique = renameAllBoundVars(e);
-        Expression mini = miniScope(unique);
         List<Variable<?>> data = new ArrayList<>();
-        //return SkolemizationVisitor.getInstance().apply(e, data);
-        return SkolemizationVisitor.getInstance().apply(mini, data);
-    }
-
-    public static <E> Expression<E> skolemizeTest(Expression<E> e) {
-        Expression nnf = pushNegation(e);
-        Expression unique = renameAllBoundVars(nnf);
-        Expression mini = miniScope(unique);
-        List<Variable<?>> data = new ArrayList<>();
-        return SkolemizationVisitor.getInstance().apply(mini, data);
-    }
-
-    public static Function<String, String> renameBoundVariables(QuantifierExpression q, int[] id, Collection<Variable<?>> freeVars, HashMap<String, String> renamingMap) {
-
-        //UUID id = UUID.randomUUID();
-        List<? extends Variable<?>> boundVariables = q.getBoundVariables();
-        //HashMap<String, String> mappingOfNames = new HashMap<>();
-        if(boundVariables != null){
-            for(Variable v : boundVariables){
-                String oldName = v.getName();
-                String newName = "Q." + id[0] + "." + oldName;
-                while(nameClashWithExistingFreeVars(newName, freeVars)){
-                    id[0]++;
-                    newName = "Q." + id[0] + "." + oldName;
-                }
-
-                renamingMap.put(oldName, newName);
-            }
-            return (vName) -> { return renamingMap.get(vName);};
-        } else {
-            throw new UnsupportedOperationException("No bound variables found.");
-        }
+        return SkolemizationVisitor.getInstance().apply(e, data);
     }
 
     public static Collection<String> collectFunctionNames(Expression<?> expr) {
@@ -258,20 +195,6 @@ public class NormalizationUtil {
         }
         return functionNames;
     }
-
-    /*public static Collection<String> collectVariableNames(Expression<?> expr) {
-        Collection<String> variableNames = new ArrayList<>();
-        if(expr instanceof Variable){
-            String name = ((Variable<?>) expr).getName();
-            variableNames.add(name);
-        }
-
-        Expression<?>[] exprChildren = expr.getChildren();
-        for(Expression i : exprChildren){
-            collectFunctionNames(i);
-        }
-        return variableNames;
-    }*/
 
     public static boolean nameClashWithExistingFreeVars(String name, Collection<Variable<?>> existingVars) {
         if(existingVars != null) {
@@ -332,7 +255,6 @@ public class NormalizationUtil {
     }
 
     //checking methods
-    //ToDo: decide whether check here or use the separate visitor
     public static boolean quantifierCheck(Expression<?> expr){
         if(expr instanceof QuantifierExpression){
             return true;
@@ -364,11 +286,20 @@ public class NormalizationUtil {
                 return true;
             }
         }
-
-        Expression<?>[] exprChildren = expr.getChildren();
-        for(Expression i : exprChildren){
-            if(equivalenceCheck(i)){
-                return true;
+        if(expr instanceof LetExpression){
+            Expression flattened = ((LetExpression) expr).flattenLetExpression();
+            Expression<?>[] exprChildren = flattened.getChildren();
+            for(Expression i : exprChildren){
+                if(equivalenceCheck(i)){
+                    return true;
+                }
+            }
+        } else {
+            Expression<?>[] exprChildren = expr.getChildren();
+            for(Expression i : exprChildren){
+                if(equivalenceCheck(i)){
+                    return true;
+                }
             }
         }
         return false;
@@ -378,11 +309,20 @@ public class NormalizationUtil {
         if(expr instanceof IfThenElse){
             return true;
         }
-
-        Expression<?>[] exprChildren = expr.getChildren();
-        for(Expression i : exprChildren){
-            if(ifThenElseCheck(i)){
-                return true;
+        if(expr instanceof LetExpression){
+            Expression flattened = ((LetExpression) expr).flattenLetExpression();
+            Expression<?>[] exprChildren = flattened.getChildren();
+            for(Expression i : exprChildren){
+                if(ifThenElseCheck(i)){
+                    return true;
+                }
+            }
+        } else {
+            Expression<?>[] exprChildren = expr.getChildren();
+            for(Expression i : exprChildren){
+                if(ifThenElseCheck(i)){
+                    return true;
+                }
             }
         }
         return false;

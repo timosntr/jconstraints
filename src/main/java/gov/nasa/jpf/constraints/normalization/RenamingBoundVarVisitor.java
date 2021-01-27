@@ -46,15 +46,12 @@ public class RenamingBoundVarVisitor extends
   @Override
   public <E> Expression<?> visit(Variable<E> v, HashMap<String, String> data) {
 
-    //String newName = "";
     if(data.containsKey(v.getName())){
       String newName = data.get(v.getName());
       return Variable.create(v.getType(), newName);
     } else {
       return v;
     }
-
-    //return Variable.create(v.getType(), newName);
   }
 
   @Override
@@ -72,20 +69,15 @@ public class RenamingBoundVarVisitor extends
           newName = "Q." + id[0] + "." + oldName;
         }
         if(data.containsKey(v.getName())){
-          data.replace(oldName, newName);
+          data.replace(v.getName(), newName);
+          renamedBoundVariables.add(Variable.create(v.getType(), newName));
         } else {
-          data.put(oldName, newName);
+          data.put(v.getName(), newName);
+          renamedBoundVariables.add(Variable.create(v.getType(), newName));
         }
       }
     }
-    //rename boundVariables if they are in data (they have to be in data)
-    for (Variable v : boundVariables) {
-      if (data.containsKey(v.getName())) {
-        renamedBoundVariables.add(Variable.create(v.getType(), data.get(v.getName())));
-      } else {
-        renamedBoundVariables.add(v);
-      }
-    }
+
     assert boundVariables.size() == renamedBoundVariables.size();
     //rename variables in expression
     Expression renamedExpr = visit(q.getBody(), data);
@@ -95,9 +87,10 @@ public class RenamingBoundVarVisitor extends
   @Override
   public Expression<?> visit(PropositionalCompound n, HashMap<String, String> data) {
     //renamings only relevant in the left path should not be used in the right path
+    HashMap<String, String> leftMap = (HashMap<String, String>) data.clone();
     HashMap<String, String> rightMap = (HashMap<String, String>) data.clone();
 
-    Expression leftChild = visit(n.getLeft(), data);
+    Expression leftChild = visit(n.getLeft(), leftMap);
 
     Expression rightChild = visit(n.getRight(), rightMap);
     return PropositionalCompound.create(leftChild, n.getOperator(), rightChild);
@@ -106,64 +99,6 @@ public class RenamingBoundVarVisitor extends
   @Override
   protected <E> Expression<?> defaultVisit(Expression<E> expression, HashMap<String, String> data) {
     return super.defaultVisit(expression, data);
-  }
-
-  @Override
-  public Expression<?> visit(LetExpression expr, HashMap<String, String> data) {
-    //TODO: version 1 (not working)
-    //Expression flattened = expr.flattenLetExpression();
-    //Expression result = visit(flattened, data);
-    //return result;
-    List<Variable> par = expr.getParameters();
-    List<Variable> newPar = new ArrayList<>();
-    Map<Variable, Expression> map = expr.getParameterValues();
-    Map<Variable, Expression> newMap = new HashMap<>();
-    /*for(Variable v : par){
-      if(data.containsKey(v.getName())){
-        String newName = data.get(v.getName());
-        Variable newVar = Variable.create(v.getType(), newName);
-        newPar.add(newVar);
-        if(map.containsKey(v.getName())){
-          Expression val = map.get(v.getName());
-          //ToDo?
-          Expression newVal = visit(val, data);
-          newMap.put(newVar, newVal);
-        }
-      } else {
-        newPar.add(v);
-        newMap.put(v, map.get(v.getName()));
-      }
-    }*/
-    //TODO: version 2 (seems to work)
-    for(Variable v : par){
-      if(data.containsKey(v.getName())){
-        String newName = data.get(v.getName());
-        Variable newVar = Variable.create(v.getType(), newName);
-        newPar.add(newVar);
-        for(Expression e : map.values()){
-          Expression renamedExpression = visit(e, data);
-          newMap.put(newVar, renamedExpression);
-        }
-      } else {
-        newPar.add(v);
-        for(Expression e : map.values()){
-          Expression renamedExpression = visit(e, data);
-          newMap.put(v, renamedExpression);
-        }
-        //newMap.put(v, map.get(v.getName()));
-      }
-    }
-    //TODO: version 3
-    /*for(Variable v : par){
-        for(Expression e : map.values()){
-          Expression renamedExpression = visit(e, data);
-          newMap.put(v, renamedExpression);
-        }
-    }*/
-    Expression newMain = visit(expr.getMainValue(), data);
-    //return LetExpression.create(par, newMap, newMain).flattenLetExpression();
-
-    return LetExpression.create(newPar, newMap, newMain).flattenLetExpression();
   }
 
   @Override
