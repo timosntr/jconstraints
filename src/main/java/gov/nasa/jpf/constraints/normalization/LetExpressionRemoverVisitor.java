@@ -43,10 +43,6 @@ public class LetExpressionRemoverVisitor extends
 
     @Override
     public Expression<?> visit(LetExpression expr, Void data) {
-        /*Expression main = expr.getMainValue();
-        if(main instanceof LetExpression){
-           //ToDo: find a way to flatten anyway
-        }*/
         Expression flattened = expr.flattenLetExpression();
         Expression result = visit(flattened, data);
         return result;
