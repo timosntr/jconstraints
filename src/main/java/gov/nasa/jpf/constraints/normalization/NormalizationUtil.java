@@ -46,10 +46,16 @@ public class NormalizationUtil {
                 Expression renamed = renameAllBoundVars(nnf);
                 Expression mini = miniScope(renamed);
                 Expression skolemized = skolemize(mini);
-                if(!skolemized.equals(null)){
-                    return ConjunctionCreatorVisitor.getInstance().apply(skolemized, null);
+                Expression prenex = prenexing(skolemized);
+                if(prenex instanceof QuantifierExpression){
+                    Quantifier q = ((QuantifierExpression) prenex).getQuantifier();
+                    List<? extends Variable<?>> bound = ((QuantifierExpression) prenex).getBoundVariables();
+                    Expression body = ((QuantifierExpression) prenex).getBody();
+                    Expression matrix = DisjunctionCreatorVisitor.getInstance().apply(body, null);
+                    Expression result = QuantifierExpression.create(q, bound, matrix);
+                    return result;
                 } else {
-                    throw new UnsupportedOperationException("Handling of Quantifiers failed!");
+                    return ConjunctionCreatorVisitor.getInstance().apply(prenex, null);
                 }
             } else {
                 return ConjunctionCreatorVisitor.getInstance().apply(nnf, null);
@@ -71,10 +77,16 @@ public class NormalizationUtil {
                 Expression renamed = renameAllBoundVars(nnf);
                 Expression mini = miniScope(renamed);
                 Expression skolemized = skolemize(mini);
-                if(!skolemized.equals(null)){
-                    return DisjunctionCreatorVisitor.getInstance().apply(skolemized, null);
+                Expression prenex = prenexing(skolemized);
+                if(prenex instanceof QuantifierExpression){
+                    Quantifier q = ((QuantifierExpression) prenex).getQuantifier();
+                    List<? extends Variable<?>> bound = ((QuantifierExpression) prenex).getBoundVariables();
+                    Expression body = ((QuantifierExpression) prenex).getBody();
+                    Expression matrix = DisjunctionCreatorVisitor.getInstance().apply(body, null);
+                    Expression result = QuantifierExpression.create(q, bound, matrix);
+                    return result;
                 } else {
-                    throw new UnsupportedOperationException("Handling of Quantifiers failed!");
+                    return DisjunctionCreatorVisitor.getInstance().apply(prenex, null);
                 }
             } else {
                 return DisjunctionCreatorVisitor.getInstance().apply(nnf, null);
@@ -180,6 +192,10 @@ public class NormalizationUtil {
     public static <E> Expression<E> skolemize(Expression<E> e) {
         List<Variable<?>> data = new ArrayList<>();
         return SkolemizationVisitor.getInstance().apply(e, data);
+    }
+
+    public static <E> Expression<E> prenexing(Expression<E> e) {
+        return PrenexFormVisitor.getInstance().apply(e, null);
     }
 
     public static Collection<String> collectFunctionNames(Expression<?> expr) {
