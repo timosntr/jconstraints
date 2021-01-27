@@ -150,6 +150,7 @@ public class MiniScopingTest {
         List<Variable<?>> bound1 = new ArrayList<>();
         bound1.add(x);
         List<Variable<?>> bound2 = new ArrayList<>();
+        //bound2.add(x);
         bound2.add(y);
         Expression q = QuantifierExpression.create(Quantifier.FORALL, bound1, PropositionalCompound.create(e1, LogicalOperator.AND, QuantifierExpression.create(Quantifier.EXISTS, bound2, PropositionalCompound.create(e1, LogicalOperator.AND, e2))));
 
@@ -157,6 +158,7 @@ public class MiniScopingTest {
         System.out.println(q);
         System.out.println(minimized);
     }
+
 }
 
 

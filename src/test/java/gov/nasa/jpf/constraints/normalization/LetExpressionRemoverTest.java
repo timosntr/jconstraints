@@ -27,7 +27,11 @@ import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.types.BuiltinTypes;
+import gov.nasa.jpf.constraints.util.ExpressionUtil;
 import org.testng.annotations.Test;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.testng.Assert.assertEquals;
 
@@ -63,6 +67,25 @@ public class LetExpressionRemoverTest {
         Expression<Boolean> result = (Expression<Boolean>) nestedLet.accept(LetExpressionRemoverVisitor.getInstance(), null);
 
         assertEquals(result, letFree2);
+        System.out.println(result);
+    }
+
+    @Test(groups = {"normalization"})
+    public void quantifiedLetTest() {
+        List<Variable<?>> bound = new ArrayList<Variable<?>>();
+        bound.add(x1);
+        Expression quantified = QuantifierExpression.create(Quantifier.EXISTS, bound, letExpression);
+        Expression<Boolean> result = NormalizationUtil.eliminateLetExpressions(quantified);
+
+        System.out.println(result);
+    }
+
+    @Test(groups = {"normalization"})
+    public void innerLetTest() {
+        Expression multipleLets = ExpressionUtil.or(nestedLet, letExpression);
+        Expression<Boolean> result = NormalizationUtil.eliminateLetExpressions(multipleLets);
+
+        System.out.println(result);
     }
 
 }

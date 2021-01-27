@@ -45,6 +45,8 @@ public class RenamingBoundVarTest {
     Expression e1 = NumericBooleanExpression.create(x, NumericComparator.LT, c1);
     Expression e2 = NumericBooleanExpression.create(y, NumericComparator.GE, c1);
     Expression e2mod = NumericBooleanExpression.create(y2, NumericComparator.GE, c1);
+    Expression e3 = NumericCompound.create(x, NumericOperator.PLUS, c1);
+    Expression e4 = NumericBooleanExpression.create(z, NumericComparator.LT, c1);
 
 
     @Test(groups = {"normalization"})
@@ -195,6 +197,21 @@ public class RenamingBoundVarTest {
         Expression<Boolean> allBound = (QuantifierExpression.create(Quantifier.EXISTS, bound1,
                 ExpressionUtil.or(e1, QuantifierExpression.create(Quantifier.FORALL, bound2,
                         ExpressionUtil.and(e1, ExpressionUtil.or(QuantifierExpression.create(Quantifier.FORALL, bound3, e2), e2))))));
+        Expression<Boolean> renamed = (Expression<Boolean>) allBound.accept(RenamingBoundVarVisitor.getInstance(), data);
+
+        System.out.println(allBound);
+        System.out.println(renamed);
+    }
+
+    @Test(groups = {"normalization"})
+    //works
+    public void renamingLetText() {
+        HashMap<String, String> data = new HashMap<>();
+        List<Variable<?>> bound1 = new ArrayList<>();
+        bound1.add(x);
+        bound1.add(y);
+
+        Expression<Boolean> allBound = QuantifierExpression.create(Quantifier.EXISTS, bound1, ExpressionUtil.or(e1, LetExpression.create(z, e3, e4)));
         Expression<Boolean> renamed = (Expression<Boolean>) allBound.accept(RenamingBoundVarVisitor.getInstance(), data);
 
         System.out.println(allBound);

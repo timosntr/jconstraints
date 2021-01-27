@@ -51,14 +51,14 @@ public class NormalizationUtilTest {
 
     @Test(groups = {"normalization"})
     public void basicTest1(){
-        Expression result = NormalizationUtil.pushNegation(negation1);
+        Expression result = NormalizationUtil.createNNF(negation1);
         System.out.println(negation1);
         System.out.println(result);
     }
 
     @Test(groups = {"normalization"})
     public void basicTest2(){
-        Expression result = NormalizationUtil.pushNegation(negation2);
+        Expression result = NormalizationUtil.createNNF(negation2);
         System.out.println(negation2);
         System.out.println(result);
     }
