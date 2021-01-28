@@ -73,7 +73,7 @@ public class SkolemizationVisitor extends
                 for(Variable var : bound){
                     String name = var.getName();
                     String nameConstant = "SK.constant." + id[0] + "." + name;
-                    while(NormalizationUtil.nameClashWithExistingNames(nameConstant, functionNames)){
+                    while(functionNames.contains(nameConstant)){
                         id[0]++;
                         nameConstant = "SK.constant." + id[0] + "." + name;
                     }
@@ -93,7 +93,7 @@ public class SkolemizationVisitor extends
                 for(Variable var : bound){
                     String name = var.getName();
                     String nameFunction = "SK.function." + id[0] + "." + name;
-                    while(NormalizationUtil.nameClashWithExistingNames(nameFunction, functionNames)){
+                    while(functionNames.contains(nameFunction)){
                         id[0]++;
                         nameFunction = "SK.function." + id[0] + "." + name;
                     }
@@ -131,13 +131,13 @@ public class SkolemizationVisitor extends
 
     }
 
-    //TODO: visit or is simple returning of expression sufficient?
     @Override
     public <E> Expression<?> visit(Variable<E> v, List<Variable<?>> data) {
         if(toSkolemize.containsKey(v.getName())){
             return toSkolemize.get(v.getName());
         }
-        return super.visit(v, data);
+        //return super.visit(v, data);
+        return v;
     }
 
     @Override
@@ -147,30 +147,6 @@ public class SkolemizationVisitor extends
 
     @Override
     public Expression<?> visit(LetExpression expr, List<Variable<?>> data) {
-        /*List<Variable> par = expr.getParameters();
-        List<Variable> newPar = new ArrayList<>();
-        Map<Variable, Expression> map = expr.getParameterValues();
-        Map<Variable, Expression> newMap = new HashMap<>();
-        //Todo: problem: Expression instead of Variable -> probably won't work without proper flattening
-        for(Variable v : par){
-            if(toSkolemize.containsKey(v.getName())){
-                //Expression newParameter = toSkolemize.get(v.getName());
-                //newPar.add(newParameter);
-                newPar.add(v);
-                if(map.containsKey(v.getName())){
-                    Expression val = map.get(v.getName());
-                    Expression newVal = visit(val, data);
-                    newMap.put(v, newVal);
-                    //newMap.put(newVar, newVal);
-                }
-            } else {
-                newPar.add(v);
-                newMap.put(v, map.get(v.getName()));
-            }
-        }
-        Expression newMain = visit(expr.getMainValue(), data);
-
-        return LetExpression.create(newPar, newMap, newMain).flattenLetExpression();*/
         Expression flattened = expr.flattenLetExpression();
         Expression result = visit(flattened, data);
         return result;
@@ -191,12 +167,25 @@ public class SkolemizationVisitor extends
         freeVars = ExpressionUtil.freeVariables(expr);
 
         //free Variables are implicitly existentially quantified
-        //could possibly be replaced by a separate ExistentionalClosure
         if(!freeVars.isEmpty()){
-            toSkolemize = NormalizationUtil.skolemizeFreeVars(freeVars, id);
+            for(Variable var : freeVars) {
+                String name = var.getName();
+                String nameConstant = "SK.f.constant." + id[0] + "." + name;
+                while (toSkolemize.containsKey(nameConstant)) {
+                    id[0]++;
+                    nameConstant = "SK.f.constant." + id[0] + "." + name;
+                }
+                Type type = var.getType();
+                gov.nasa.jpf.constraints.expressions.functions.Function f = gov.nasa.jpf.constraints.expressions.functions.Function.create(nameConstant, type);
+                Variable v[] = new Variable[f.getArity()];
+                FunctionExpression functionpression = FunctionExpression.create(f, v);
+                toSkolemize.put(name, functionpression);
+            }
+
             Set<String> skolemizedFreeVars = toSkolemize.keySet();
             for(String s : skolemizedFreeVars){
-                while(NormalizationUtil.nameClashWithExistingNames(s, functionNames)){
+                //TODO
+                while(functionNames.contains(s)) {
                     id[0]++;
                     s = "SK.f.constant." + id[0] + "." + s;
                 }

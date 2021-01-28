@@ -37,12 +37,13 @@ public class NormalizationUtil {
     //ToDo: further normalizing methods (order, dependencies...)
     //ToDo: normalize
     //todo: add SMTLibExportVisitor
+    //ToDo: method for counting clauses
 
     //ToDo: fix skolemization
-    public static <E> Expression<E> createCNF(Expression<E> e) {
+    public static <E> Expression<E> createCNFforMatrix(Expression<E> e) {
         Expression nnf = createNNF(e);
         if (!nnf.equals(null)) {
-            if(quantifierCheck(e)){
+            //if(quantifierCheck(e)){
                 Expression renamed = renameAllBoundVars(nnf);
                 Expression mini = miniScope(renamed);
                 Expression skolemized = skolemize(mini);
@@ -51,18 +52,48 @@ public class NormalizationUtil {
                     Quantifier q = ((QuantifierExpression) prenex).getQuantifier();
                     List<? extends Variable<?>> bound = ((QuantifierExpression) prenex).getBoundVariables();
                     Expression body = ((QuantifierExpression) prenex).getBody();
-                    Expression matrix = DisjunctionCreatorVisitor.getInstance().apply(body, null);
+                    Expression matrix = ConjunctionCreatorVisitor.getInstance().apply(body, null);
                     Expression result = QuantifierExpression.create(q, bound, matrix);
                     return result;
                 } else {
                     return ConjunctionCreatorVisitor.getInstance().apply(prenex, null);
                 }
-            } else {
-                return ConjunctionCreatorVisitor.getInstance().apply(nnf, null);
-            }
+            //} else {
+            //    return ConjunctionCreatorVisitor.getInstance().apply(nnf, null);
+            //}
         } else {
             throw new UnsupportedOperationException("Creation of NNF failed, no CNF created!");
         }
+    }
+
+    public static <E> Expression<E> createCNF(Expression<E> e) {
+        Expression nnf = createNNF(e);
+        if (!nnf.equals(null)) {
+            /*if(quantifierCheck(e)){
+                Expression renamed = renameAllBoundVars(nnf);
+                Expression mini = miniScope(renamed);
+                Expression skolemized = skolemize(mini);
+                Expression prenex = prenexing(skolemized);
+                if(prenex instanceof QuantifierExpression){
+                    Quantifier q = ((QuantifierExpression) prenex).getQuantifier();
+                    List<? extends Variable<?>> bound = ((QuantifierExpression) prenex).getBoundVariables();
+                    Expression body = ((QuantifierExpression) prenex).getBody();
+                    Expression matrix = ConjunctionCreatorVisitor.getInstance().apply(body, null);
+                    Expression result = QuantifierExpression.create(q, bound, matrix);
+                    return result;
+                } else {
+                    return ConjunctionCreatorVisitor.getInstance().apply(prenex, null);
+                }
+            } else {*/
+                return ConjunctionCreatorVisitor.getInstance().apply(nnf, null);
+        //    }
+        } else {
+            throw new UnsupportedOperationException("Creation of NNF failed, no CNF created!");
+        }
+    }
+
+    public static <E> Expression<E> simplifyProblem(Expression<E> e) {
+        return SimplifyProblemVisitor.getInstance().apply(e, null);
     }
 
     public static <E> Expression<E> createCNFNoQuantorHandling(Expression<E> e) {
@@ -224,7 +255,7 @@ public class NormalizationUtil {
         return false;
     }
 
-    public static boolean nameClashWithExistingNames(String name, Collection<String> existingNames) {
+    /*public static boolean nameClashWithExistingNames(String name, Collection<String> existingNames) {
         if(existingNames != null) {
             for (String fName : existingNames) {
                 if(fName.equals(name)){
@@ -233,7 +264,7 @@ public class NormalizationUtil {
             }
         }
         return false;
-    }
+    }*/
 
     public static boolean containsDuplicateNames(Collection<Variable<?>> vars) {
         Collection<Variable> existing = new ArrayList<>();
@@ -250,7 +281,7 @@ public class NormalizationUtil {
 
     //free Variables are implicitly existentially quantified
     //could possibly be replaced by a separate ExistentionalClosure
-    public static HashMap<String, Expression> skolemizeFreeVars(Collection<Variable<?>> freeVars, int[] id) {
+    /*public static HashMap<String, Expression> skolemizeFreeVars(Collection<Variable<?>> freeVars, int[] id) {
         HashMap<String, Expression> functionNames = new HashMap<>();
         if(!freeVars.isEmpty()){
             for(Variable var : freeVars){
@@ -268,7 +299,7 @@ public class NormalizationUtil {
             }
         }
         return functionNames;
-    }
+    }*/
 
     //checking methods
     public static boolean quantifierCheck(Expression<?> expr){
@@ -293,6 +324,130 @@ public class NormalizationUtil {
             }
         }
         return false;
+    }
+
+    public static int countQuantifiers(Expression<?> expr){
+        int count = 0;
+        if(expr instanceof LetExpression){
+            Expression flattened = ((LetExpression) expr).flattenLetExpression();
+            Expression<?>[] children = flattened.getChildren();
+            if(children.length != 0){
+                for(Expression child : expr.getChildren()){
+                    if(expr instanceof QuantifierExpression){
+                        count++;
+                    }
+                    countQuantifiers(child);
+                }
+            }
+        } else {
+            Expression[] children = expr.getChildren();
+            if(children.length != 0){
+                for(Expression child : expr.getChildren()){
+                    if(expr instanceof QuantifierExpression){
+                        count++;
+                    }
+                    countQuantifiers(child);
+                }
+            }
+        }
+        return count;
+    }
+    //TODO: rewrite counting methods; they do not work
+    public static int countItes(Expression<?> expr){
+        int count = 0;
+        if(expr instanceof IfThenElse){
+            count++;
+        }
+        if(expr instanceof LetExpression){
+            Expression flattened = ((LetExpression) expr).flattenLetExpression();
+            Expression<?>[] children = flattened.getChildren();
+            if(children.length != 0){
+                for(Expression child : expr.getChildren()){
+                    countItes(child);
+                }
+            }
+        } else {
+            Expression[] children = expr.getChildren();
+            if(children.length != 0){
+                for(Expression child : expr.getChildren()){
+                    countItes(child);
+                }
+            }
+        }
+        return count;
+    }
+
+    public static int countEquivalences(Expression<?> expr){
+        int count = 0;
+        if(expr instanceof PropositionalCompound){
+            if(((PropositionalCompound) expr).getOperator().equals(LogicalOperator.EQUIV)){
+                count++;
+            }
+        }
+        if(expr instanceof LetExpression){
+            Expression flattened = ((LetExpression) expr).flattenLetExpression();
+            Expression<?>[] children = flattened.getChildren();
+            if(children.length != 0){
+                for(Expression child : expr.getChildren()){
+                    countEquivalences(child);
+                }
+            }
+        } else {
+            Expression[] children = expr.getChildren();
+            if(children.length != 0){
+                for(Expression child : expr.getChildren()){
+                    countEquivalences(child);
+                }
+            }
+        }
+        return count;
+    }
+
+    public static int countConjunctions(Expression<?> expr){
+        int count = 0;
+        if(expr instanceof PropositionalCompound){
+            if(((PropositionalCompound) expr).getOperator().equals(LogicalOperator.AND)){
+                count++;
+            }
+        }
+        if(expr instanceof LetExpression){
+            Expression flattened = ((LetExpression) expr).flattenLetExpression();
+            Expression<?>[] children = flattened.getChildren();
+            if(children.length != 0){
+                for(Expression child : expr.getChildren()){
+                    countConjunctions(child);
+                }
+            }
+        } else {
+            Expression[] children = expr.getChildren();
+            if(children.length != 0){
+                for(Expression child : expr.getChildren()){
+                    countConjunctions(child);
+                }
+            }
+        }
+        return count;
+    }
+
+    public static int countDisjunctions(Expression<?> expr){
+        int count = 0;
+        if(expr instanceof LetExpression){
+            Expression flattened = ((LetExpression) expr).flattenLetExpression();
+            Expression<?>[] children = flattened.getChildren();
+            if(children.length != 0){
+                for(Expression child : expr.getChildren()){
+                    countDisjunctions(child);
+                }
+            }
+        } else {
+            Expression[] children = expr.getChildren();
+            if(children.length != 0){
+                for(Expression child : expr.getChildren()){
+                    countDisjunctions(child);
+                }
+            }
+        }
+        return count;
     }
 
     public static boolean equivalenceCheck(Expression<?> expr){
