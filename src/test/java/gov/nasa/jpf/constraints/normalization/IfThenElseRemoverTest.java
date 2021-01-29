@@ -55,14 +55,14 @@ public class IfThenElseRemoverTest {
 
     @Test(groups = {"normalization"})
     public void ifThenElseTest() {
-        Expression<Boolean> result = (Expression<Boolean>) iteExpression.accept(IfThenElseRemoverVisitor.getInstance(), null);
+        Expression<Boolean> result = NormalizationUtil.eliminateIfThenElse(iteExpression);
 
         assertEquals(result, iteFree);
     }
 
     @Test(groups = {"normalization"})
     public void nestedIfThenElseTest() {
-        Expression<Boolean> result = (Expression<Boolean>) nestedIte.accept(IfThenElseRemoverVisitor.getInstance(), null);
+        Expression<Boolean> result = NormalizationUtil.eliminateIfThenElse(nestedIte);
 
         assertEquals(result, iteFree2);
     }
@@ -96,5 +96,4 @@ public class IfThenElseRemoverTest {
 
         System.out.println(result);
     }
-
 }
