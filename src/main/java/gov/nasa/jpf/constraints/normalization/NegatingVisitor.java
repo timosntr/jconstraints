@@ -173,8 +173,6 @@ public class NegatingVisitor extends
         return expr;
     }
 
-    //should be unnecessary after the IfThenElseRemover
-    @Override
     public <E> Expression<?> visit(IfThenElse<E> expr, Boolean shouldNegate) {
 
         Expression thenExpr = expr.getThen();
@@ -196,9 +194,11 @@ public class NegatingVisitor extends
                         secondPart);
 
                 return visit(Negation.create(result), false);
+            } else {
+                //TODO: assumption correct?
+                //if IfThenElse from NumericBooleanExpression or NumericCompound reach up to here, they should not be negated
+                return expr;
             }
-            //TODO: assumption correct?
-            //IfThenElse from NumericBooleanExpression or NumericCompound won't reach up to here
         }
 
         if(thenExpr.getType().equals(BuiltinTypes.BOOL) && elseExpr.getType().equals(BuiltinTypes.BOOL)) {
@@ -213,7 +213,6 @@ public class NegatingVisitor extends
 
             return result;
         }
-
         return visit(expr, false);
     }
 

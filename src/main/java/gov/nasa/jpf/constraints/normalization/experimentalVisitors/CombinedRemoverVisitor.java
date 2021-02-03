@@ -25,6 +25,7 @@ package gov.nasa.jpf.constraints.normalization.experimentalVisitors;
 
 import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.expressions.*;
+import gov.nasa.jpf.constraints.types.BuiltinTypes;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
 
 //this is a combined remover, which could be used before creating a NNF
@@ -43,40 +44,101 @@ public class CombinedRemoverVisitor extends
         Expression<?> left = expression.getLeft();
         Expression<?> right = expression.getRight();
         LogicalOperator operator = expression.getOperator();
+        boolean leftIsIte = left instanceof IfThenElse;
+        boolean rightIsIte = right instanceof IfThenElse;
 
-        if(operator.equals(LogicalOperator.XOR)) {
-            Expression<Boolean> partLeft = PropositionalCompound.create((Expression<Boolean>) left, LogicalOperator.OR, right);
-            Expression<Boolean> partRight = PropositionalCompound.create(Negation.create((Expression<Boolean>) left), LogicalOperator.OR, Negation.create((Expression<Boolean>) right));
-            Expression<Boolean> result = PropositionalCompound.create(
-                    (Expression<Boolean>) visit(partLeft, data),
-                    LogicalOperator.AND,
-                    visit(partRight, data));
+        if(!leftIsIte && !rightIsIte){
+            //case: no ItE in children
+            if(operator.equals(LogicalOperator.XOR)) {
+                Expression<Boolean> partLeft = PropositionalCompound.create((Expression<Boolean>) left, LogicalOperator.OR, right);
+                Expression<Boolean> partRight = PropositionalCompound.create(Negation.create((Expression<Boolean>) left), LogicalOperator.OR, Negation.create((Expression<Boolean>) right));
+                Expression<Boolean> result = PropositionalCompound.create(
+                        (Expression<Boolean>) visit(partLeft, data),
+                        LogicalOperator.AND,
+                        visit(partRight, data));
 
-            return result;
-        } else if(operator.equals(LogicalOperator.EQUIV)) {
-            Expression<Boolean> partLeft = PropositionalCompound.create(Negation.create((Expression<Boolean>) left), LogicalOperator.OR, right);
-            Expression<Boolean> partRight = PropositionalCompound.create((Expression<Boolean>) left, LogicalOperator.OR, Negation.create((Expression<Boolean>) right));
-            Expression<Boolean> result = PropositionalCompound.create(
-                    (Expression<Boolean>) visit(partLeft, data),
-                    LogicalOperator.AND,
-                    visit(partRight, data));
+                return result;
+            } else if(operator.equals(LogicalOperator.EQUIV)) {
+                Expression<Boolean> partLeft = PropositionalCompound.create(Negation.create((Expression<Boolean>) left), LogicalOperator.OR, right);
+                Expression<Boolean> partRight = PropositionalCompound.create((Expression<Boolean>) left, LogicalOperator.OR, Negation.create((Expression<Boolean>) right));
+                Expression<Boolean> result = PropositionalCompound.create(
+                        (Expression<Boolean>) visit(partLeft, data),
+                        LogicalOperator.AND,
+                        visit(partRight, data));
 
-            return result;
-        } else if(operator.equals(LogicalOperator.IMPLY)){
-            Expression<Boolean> partLeft = Negation.create((Expression<Boolean>) left);
-            Expression<Boolean> result = PropositionalCompound.create(
-                    (Expression<Boolean>) visit(partLeft, data),
-                    LogicalOperator.OR,
-                    visit(right, data));
+                return result;
+            } else if(operator.equals(LogicalOperator.IMPLY)){
+                Expression<Boolean> partLeft = Negation.create((Expression<Boolean>) left);
+                Expression<Boolean> result = PropositionalCompound.create(
+                        (Expression<Boolean>) visit(partLeft, data),
+                        LogicalOperator.OR,
+                        visit(right, data));
 
-            return result;
-        } else {
-            Expression visitedExpr = PropositionalCompound.create(
-                    (Expression<Boolean>) visit(left, data),
-                    operator,
-                    visit(right, data));
+                return result;
+            } else {
+                Expression visitedExpr = PropositionalCompound.create(
+                        (Expression<Boolean>) visit(left, data),
+                        operator,
+                        visit(right, data));
 
-            return visitedExpr;
+                return visitedExpr;
+            }
+        } else if(leftIsIte && !rightIsIte){
+            //case: left child is ItE
+            Expression ifCondition = ((IfThenElse<?>) left).getIf();
+            Expression thenExpression = ((IfThenElse<?>) left).getThen();
+            Expression elseExpression = ((IfThenElse<?>) left).getElse();
+            if(!thenExpression.getType().equals(BuiltinTypes.BOOL) || !elseExpression.getType().equals(BuiltinTypes.BOOL)){
+                //case: ItE is not of Type Bool (most probably Numeric)
+                Expression flattenedThen = PropositionalCompound.create(ifCondition, LogicalOperator.AND, PropositionalCompound.create(thenExpression, operator, visit(right, data)));
+                Expression flattenedElse = PropositionalCompound.create(Negation.create(ifCondition), LogicalOperator.AND, PropositionalCompound.create(elseExpression, operator, visit(right, data)));
+                Expression result = PropositionalCompound.create(flattenedThen, LogicalOperator.OR, flattenedElse);
+                return result;
+            } else {
+                //case: visit(IfThenElse) will flatten child
+                return super.visit(expression, data);
+            }
+        } else if(!leftIsIte && rightIsIte) {
+            //case: left child is ItE
+            Expression ifCondition = ((IfThenElse<?>) right).getIf();
+            Expression thenExpression = ((IfThenElse<?>) right).getThen();
+            Expression elseExpression = ((IfThenElse<?>) right).getElse();
+            if (!thenExpression.getType().equals(BuiltinTypes.BOOL) || !elseExpression.getType().equals(BuiltinTypes.BOOL)) {
+                //case: ItE is not of Type Bool (most probably Numeric)
+                Expression flattenedThen = PropositionalCompound.create(ifCondition, LogicalOperator.AND, PropositionalCompound.create((Expression<Boolean>) visit(left, data), operator, thenExpression));
+                Expression flattenedElse = PropositionalCompound.create(Negation.create(ifCondition), LogicalOperator.AND, PropositionalCompound.create((Expression<Boolean>) visit(left, data), operator, elseExpression));
+                Expression result = PropositionalCompound.create(flattenedThen, LogicalOperator.OR, flattenedElse);
+                return result;
+            } else {
+                //case: visit(IfThenElse) will flatten child
+                return super.visit(expression, data);
+            }
+        } else { //(leftIsIte && rightIsIte)
+            Expression leftIfCondition = ((IfThenElse<?>) left).getIf();
+            Expression leftThenExpression = ((IfThenElse<?>) left).getThen();
+            Expression leftElseExpression = ((IfThenElse<?>) left).getElse();
+            Expression rightIfCondition = ((IfThenElse<?>) right).getIf();
+            Expression rightThenExpression = ((IfThenElse<?>) right).getThen();
+            Expression rightElseExpression = ((IfThenElse<?>) right).getElse();
+
+            if ((!leftThenExpression.getType().equals(BuiltinTypes.BOOL) || !leftElseExpression.getType().equals(BuiltinTypes.BOOL))
+                    || (!rightThenExpression.getType().equals(BuiltinTypes.BOOL) || !rightElseExpression.getType().equals(BuiltinTypes.BOOL))) {
+                //case: one or both ItE contain a part which is not of Type Bool (most probably Numeric)
+                Expression part1 = PropositionalCompound.create(leftIfCondition, LogicalOperator.AND, PropositionalCompound.create(rightIfCondition, LogicalOperator.AND,
+                        PropositionalCompound.create(leftThenExpression, operator, rightThenExpression)));
+                Expression part2 = PropositionalCompound.create(leftIfCondition, LogicalOperator.AND, PropositionalCompound.create(Negation.create(rightIfCondition), LogicalOperator.AND,
+                        PropositionalCompound.create(leftThenExpression, operator, rightElseExpression)));
+                Expression part3 = PropositionalCompound.create(Negation.create(leftIfCondition), LogicalOperator.AND, PropositionalCompound.create(rightIfCondition, LogicalOperator.AND,
+                        PropositionalCompound.create(leftElseExpression, operator, rightThenExpression)));
+                Expression part4 = PropositionalCompound.create(Negation.create(leftIfCondition), LogicalOperator.AND, PropositionalCompound.create(Negation.create(rightIfCondition), LogicalOperator.AND,
+                        PropositionalCompound.create(leftElseExpression, operator, rightElseExpression)));
+
+                Expression result = PropositionalCompound.create(part1, LogicalOperator.OR, PropositionalCompound.create(part2, LogicalOperator.OR, PropositionalCompound.create(part3, LogicalOperator.OR, part4)));
+                return result;
+            } else {
+                //case: visit(IfThenElse) will flatten child
+                return super.visit(expression, data);
+            }
         }
     }
 

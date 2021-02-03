@@ -120,13 +120,13 @@ public class IfThenElseRemoverVisitor extends
             return n;
         } else if(leftChildIsIte && !rightChildIsIte){
             Expression newThen = NumericCompound.create(((IfThenElse<?>) leftChild).getThen(), operator, rightChild);
-            Expression newElse = NumericCompound.create(((IfThenElse<?>) leftChild).getElse(), operator, rightChild);;
+            Expression newElse = NumericCompound.create(((IfThenElse<?>) leftChild).getElse(), operator, rightChild);
             Expression newIte = IfThenElse.create(((IfThenElse<?>) leftChild).getIf(), newThen, newElse);
 
             return newIte;
         } else if(!leftChildIsIte && rightChildIsIte){
             Expression newThen = NumericCompound.create(leftChild, operator, ((IfThenElse<?>) rightChild).getThen());
-            Expression newElse = NumericCompound.create(leftChild, operator, ((IfThenElse<?>) rightChild).getElse());;
+            Expression newElse = NumericCompound.create(leftChild, operator, ((IfThenElse<?>) rightChild).getElse());
             Expression newIte = IfThenElse.create(((IfThenElse<?>) rightChild).getIf(), newThen, newElse);
 
             return newIte;
@@ -162,14 +162,11 @@ public class IfThenElseRemoverVisitor extends
         Expression elseExpr = visit(n.getElse(), data);
 
         if(thenExpr.getType().equals(BuiltinTypes.BOOL) && elseExpr.getType().equals(BuiltinTypes.BOOL)){
-            Expression firstPart = PropositionalCompound.create(Negation.create(ifCond), LogicalOperator.OR, thenExpr);
-            Expression secondPart = PropositionalCompound.create(ifCond, LogicalOperator.OR, elseExpr);
+            Expression firstPart = ExpressionUtil.or(Negation.create(ifCond), thenExpr);
+            Expression secondPart = ExpressionUtil.or(ifCond, elseExpr);
 
             //visit again for finding nested IfThenElse
-            Expression result = PropositionalCompound.create(
-                    (Expression<Boolean>) firstPart,
-                    LogicalOperator.AND,
-                    secondPart);
+            Expression result = ExpressionUtil.and((Expression<Boolean>) firstPart, secondPart);
 
             return result;
         } else {

@@ -27,6 +27,7 @@ import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.expressions.functions.FunctionExpression;
+import gov.nasa.jpf.constraints.normalization.experimentalVisitors.ModifiedIfThenElseRemoverVisitor;
 import gov.nasa.jpf.constraints.normalization.experimentalVisitors.ModifiedNegatingVisitor;
 import gov.nasa.jpf.constraints.types.Type;
 
@@ -35,32 +36,33 @@ import java.util.*;
 public class NormalizationUtil {
 
     //ToDo: further normalizing methods (order, dependencies...)
-    //ToDo: normalize
-    //todo: add SMTLibExportVisitor
+    //ToDo: normalize (mit quantifiercheck und dann entsprechender aufruf des passenden algorithmus?)
     //ToDo: method for counting clauses
 
     //ToDo: fix skolemization
     public static <E> Expression<E> createCNFforMatrix(Expression<E> e) {
         Expression nnf = createNNF(e);
         if (!nnf.equals(null)) {
-            //if(quantifierCheck(e)){
-                Expression renamed = renameAllBoundVars(nnf);
-                Expression mini = miniScope(renamed);
-                Expression skolemized = skolemize(mini);
-                Expression prenex = prenexing(skolemized);
-                if(prenex instanceof QuantifierExpression){
-                    Quantifier q = ((QuantifierExpression) prenex).getQuantifier();
-                    List<? extends Variable<?>> bound = ((QuantifierExpression) prenex).getBoundVariables();
-                    Expression body = ((QuantifierExpression) prenex).getBody();
-                    Expression matrix = ConjunctionCreatorVisitor.getInstance().apply(body, null);
-                    Expression result = QuantifierExpression.create(q, bound, matrix);
-                    return result;
-                } else {
-                    return ConjunctionCreatorVisitor.getInstance().apply(prenex, null);
-                }
-            //} else {
-            //    return ConjunctionCreatorVisitor.getInstance().apply(nnf, null);
-            //}
+            Expression renamed = renameAllBoundVars(nnf);
+            //miniscoping is only senseful if there is at least an EXISTS after creation of nnf
+            Expression beforeSkolemization;
+            if(checkForExists(renamed)){
+                beforeSkolemization = miniScope(renamed);
+            } else {
+                beforeSkolemization = renamed;
+            }
+            Expression skolemized = skolemize(beforeSkolemization);
+            Expression prenex = prenexing(skolemized);
+            if(prenex instanceof QuantifierExpression){
+                Quantifier q = ((QuantifierExpression) prenex).getQuantifier();
+                List<? extends Variable<?>> bound = ((QuantifierExpression) prenex).getBoundVariables();
+                Expression body = ((QuantifierExpression) prenex).getBody();
+                Expression matrix = ConjunctionCreatorVisitor.getInstance().apply(body, null);
+                Expression result = QuantifierExpression.create(q, bound, matrix);
+                return result;
+            } else {
+                return ConjunctionCreatorVisitor.getInstance().apply(prenex, null);
+            }
         } else {
             throw new UnsupportedOperationException("Creation of NNF failed, no CNF created!");
         }
@@ -69,31 +71,15 @@ public class NormalizationUtil {
     public static <E> Expression<E> createCNF(Expression<E> e) {
         Expression nnf = createNNF(e);
         if (!nnf.equals(null)) {
-            /*if(quantifierCheck(e)){
-                Expression renamed = renameAllBoundVars(nnf);
-                Expression mini = miniScope(renamed);
-                Expression skolemized = skolemize(mini);
-                Expression prenex = prenexing(skolemized);
-                if(prenex instanceof QuantifierExpression){
-                    Quantifier q = ((QuantifierExpression) prenex).getQuantifier();
-                    List<? extends Variable<?>> bound = ((QuantifierExpression) prenex).getBoundVariables();
-                    Expression body = ((QuantifierExpression) prenex).getBody();
-                    Expression matrix = ConjunctionCreatorVisitor.getInstance().apply(body, null);
-                    Expression result = QuantifierExpression.create(q, bound, matrix);
-                    return result;
-                } else {
-                    return ConjunctionCreatorVisitor.getInstance().apply(prenex, null);
-                }
-            } else {*/
-                return ConjunctionCreatorVisitor.getInstance().apply(nnf, null);
-        //    }
+            return ConjunctionCreatorVisitor.getInstance().apply(nnf, null);
         } else {
             throw new UnsupportedOperationException("Creation of NNF failed, no CNF created!");
         }
     }
 
     public static <E> Expression<E> simplifyProblem(Expression<E> e) {
-        return SimplifyProblemVisitor.getInstance().apply(e, null);
+        LinkedList<Expression<?>> data = new LinkedList<>();
+        return SimplifyProblemVisitor.getInstance().apply(e, data);
     }
 
     public static <E> Expression<E> createCNFNoQuantorHandling(Expression<E> e) {
@@ -106,8 +92,14 @@ public class NormalizationUtil {
         if (!nnf.equals(null)) {
             if(quantifierCheck(e)){
                 Expression renamed = renameAllBoundVars(nnf);
-                Expression mini = miniScope(renamed);
-                Expression skolemized = skolemize(mini);
+                //miniscoping is only senseful if there is at least an EXISTS after creation of nnf
+                Expression beforeSkolemization;
+                if(checkForExists(renamed)){
+                    beforeSkolemization = miniScope(renamed);
+                } else {
+                    beforeSkolemization = renamed;
+                }
+                Expression skolemized = skolemize(beforeSkolemization);
                 Expression prenex = prenexing(skolemized);
                 if(prenex instanceof QuantifierExpression){
                     Quantifier q = ((QuantifierExpression) prenex).getQuantifier();
@@ -143,6 +135,7 @@ public class NormalizationUtil {
                     Expression noXOR = eliminateXOR(noImplication);
                     if (!noXOR.equals(null)) {
                         Expression noIte = eliminateIfThenElse(noXOR);
+                        //Expression noIte = eliminatePropositionalIfThenElse(noXOR);
                         if(!noIte.equals(null)){
                             return NegatingVisitor.getInstance().apply(noIte, false);
                         //return NegatingVisitor.getInstance().apply(noXOR, false);
@@ -196,6 +189,10 @@ public class NormalizationUtil {
 
     public static <E> Expression<E> eliminateIfThenElse(Expression<E> e) {
         return IfThenElseRemoverVisitor.getInstance().apply(e, null);
+    }
+
+    public static <E> Expression<E> eliminatePropositionalIfThenElse(Expression<E> e) {
+        return ModifiedIfThenElseRemoverVisitor.getInstance().apply(e, null);
     }
 
     public static <E> Expression<E> eliminateLetExpressions(Expression<E> e) {
@@ -326,6 +323,32 @@ public class NormalizationUtil {
         return false;
     }
 
+    public static boolean checkForExists(Expression<?> expr){
+        if(expr instanceof QuantifierExpression){
+            if(((QuantifierExpression) expr).getQuantifier().equals(Quantifier.EXISTS)){
+                return true;
+            }
+        }
+
+        if(expr instanceof LetExpression){
+            Expression flattened = ((LetExpression) expr).flattenLetExpression();
+            Expression<?>[] exprChildren = flattened.getChildren();
+            for(Expression i : exprChildren){
+                if(checkForExists(i)){
+                    return true;
+                }
+            }
+        } else {
+            Expression<?>[] exprChildren = expr.getChildren();
+            for(Expression i : exprChildren){
+                if(checkForExists(i)){
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+    //TODO!
     public static int countQuantifiers(Expression<?> expr){
         int count = 0;
         if(expr instanceof LetExpression){

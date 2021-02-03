@@ -136,7 +136,6 @@ public class SkolemizationVisitor extends
         if(toSkolemize.containsKey(v.getName())){
             return toSkolemize.get(v.getName());
         }
-        //return super.visit(v, data);
         return v;
     }
 
@@ -152,7 +151,7 @@ public class SkolemizationVisitor extends
         return result;
     }
 
-    @Override
+    /*@Override
     public <E> Expression<?> visit(IfThenElse<E> n, List<Variable<?>> data) {
 
         Expression newIfCond = visit(n.getIf(), data);
@@ -160,7 +159,7 @@ public class SkolemizationVisitor extends
         Expression newElseExpr = visit(n.getElse(), data);
 
         return IfThenElse.create(newIfCond, newThenExpr, newElseExpr);
-    }
+    }*/
 
     public <T> Expression<T> apply(Expression<T> expr, List<Variable<?>> data) {
         functionNames = NormalizationUtil.collectFunctionNames(expr);

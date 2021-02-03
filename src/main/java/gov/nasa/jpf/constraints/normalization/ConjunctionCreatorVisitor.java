@@ -28,6 +28,7 @@ import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.expressions.functions.FunctionExpression;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
+import gov.nasa.jpf.constraints.util.ExpressionUtil;
 
 //should be used after removal of equivalences, implications, ifThenElse and XOR
 //negations should be handled ahead of ConjunctionCreator
@@ -116,7 +117,9 @@ public class ConjunctionCreatorVisitor extends
 
             } else if (operatorIsOR && leftOpIsOR) {
                 //case: (A OR B) OR (C)
-                /*Expression result = PropositionalCompound.create(leftChild, LogicalOperator.OR, rightChild);
+                /*Expression result = ExpressionUtil.or(
+                        PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightChild),
+                        PropositionalCompound.create(leftRight, LogicalOperator.OR, rightChild));
                 return result;*/
                 return expr;
             }
@@ -137,7 +140,9 @@ public class ConjunctionCreatorVisitor extends
 
             } else if (operatorIsOR && rightOpIsOR) {
                 //case: (A) OR (C OR D)
-                /*Expression result = PropositionalCompound.create(leftChild, LogicalOperator.OR, rightChild);
+                /*Expression result = ExpressionUtil.or(
+                        PropositionalCompound.create(leftChild, LogicalOperator.OR, rightLeft),
+                        PropositionalCompound.create(leftChild, LogicalOperator.OR, rightRight));
                 return result;*/
                 return expr;
             }

@@ -27,9 +27,11 @@ import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
+import gov.nasa.jpf.constraints.util.ExpressionUtil;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 //Creation of an anti prenex form (scope of Quantifiers should be minimized)
 //Quantifiers have to be handled ahead of ConjunctionCreator
@@ -49,9 +51,6 @@ public class MiniScopingVisitor extends
         List<? extends Variable<?>> bound = q.getBoundVariables();
         Expression body = visit(q.getBody(), data);
 
-        List<Variable<?>> newBoundLeft = new ArrayList<>();
-        List<Variable<?>> newBoundRight = new ArrayList<>();
-
         //if quantified body is not a Propositional Compound, mini scoping is done here
         //negations have to be pushed beforehand!
         /*if(body instanceof QuantifierExpression){
@@ -66,12 +65,14 @@ public class MiniScopingVisitor extends
         LogicalOperator operator = ((PropositionalCompound) body).getOperator();
 
         //check if bound variables are only in one child of Propositional Compound
-        ArrayList<Variable> freeLeft = new ArrayList<>();
-        leftChild.collectFreeVariables(freeLeft);
+        //ArrayList<Variable> freeLeft = new ArrayList<>();
+        //leftChild.collectFreeVariables(freeLeft);
+        Set<Variable<?>> freeLeft = ExpressionUtil.freeVariables(leftChild);
         boolean boundInFreeLeft = false;
 
-        ArrayList<Variable> freeRight = new ArrayList<>();
-        rightChild.collectFreeVariables(freeRight);
+        //ArrayList<Variable> freeRight = new ArrayList<>();
+        //rightChild.collectFreeVariables(freeRight);
+        Set<Variable<?>> freeRight = ExpressionUtil.freeVariables(rightChild);
         boolean boundInFreeRight = false;
 
         if(freeLeft != null){
@@ -93,6 +94,10 @@ public class MiniScopingVisitor extends
                 }
             }
         }
+
+        List<Variable<?>> newBoundLeft = new ArrayList<>();
+        List<Variable<?>> newBoundRight = new ArrayList<>();
+
         if(!boundInFreeLeft && !boundInFreeRight){
             //no bound variables in children
             //simplification of expression
@@ -108,10 +113,9 @@ public class MiniScopingVisitor extends
                     }
                 }
             }
-            //Expression newLeft = visit(leftChild, data);
             Expression newLeft = leftChild;
+            //visit again because further miniscoping could be possible
             Expression newRight = visit(QuantifierExpression.create(quantifier, newBoundRight, rightChild), data);
-            //Expression newRight = visit(QuantifierExpression.create(quantifier, bound, rightChild), data);
             return PropositionalCompound.create(newLeft, operator, newRight);
 
         } else if(boundInFreeLeft && !boundInFreeRight){
@@ -125,9 +129,8 @@ public class MiniScopingVisitor extends
                     }
                 }
             }
-            //Expression newLeft = visit(QuantifierExpression.create(quantifier, newBoundLeft, leftChild), data);
-            Expression newLeft = visit(QuantifierExpression.create(quantifier, bound, leftChild), data);
-            //Expression newRight = visit(rightChild, data);
+            //visit again because further miniscoping could be possible
+            Expression newLeft = visit(QuantifierExpression.create(quantifier, newBoundLeft, leftChild), data);
             Expression newRight = rightChild;
             return PropositionalCompound.create(newLeft, operator, newRight);
 
@@ -154,10 +157,9 @@ public class MiniScopingVisitor extends
                 if (operator == LogicalOperator.AND) {
                     //quantifier can be pushed into the subformulas
                     //TODO: added
+                    //visit again because further miniscoping could be possible
                     Expression newLeft = visit(QuantifierExpression.create(quantifier, newBoundLeft, leftChild), data);
                     Expression newRight = visit(QuantifierExpression.create(quantifier, newBoundRight, rightChild), data);
-                    //Expression newLeft = visit(QuantifierExpression.create(quantifier, bound, leftChild), data);
-                    //Expression newRight = visit(QuantifierExpression.create(quantifier, bound, rightChild), data);
                     return PropositionalCompound.create(newLeft, operator, newRight);
                 }
                 if (operator == LogicalOperator.OR) {
@@ -180,8 +182,6 @@ public class MiniScopingVisitor extends
                     //TODO: added
                     Expression newLeft = visit(QuantifierExpression.create(quantifier, newBoundLeft, leftChild), data);
                     Expression newRight = visit(QuantifierExpression.create(quantifier, newBoundRight, rightChild), data);
-                    //Expression newLeft = visit(QuantifierExpression.create(quantifier, bound, leftChild), data);
-                    //Expression newRight = visit(QuantifierExpression.create(quantifier, bound, rightChild), data);
                     return PropositionalCompound.create(newLeft, operator, newRight);
                 }
                 if (operator == LogicalOperator.AND) {
@@ -196,6 +196,7 @@ public class MiniScopingVisitor extends
                 }
             }
         }
+        //TODO: which case is here?
         return q;
     }
 

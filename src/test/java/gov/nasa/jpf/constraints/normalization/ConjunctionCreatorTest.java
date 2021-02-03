@@ -72,7 +72,7 @@ public class ConjunctionCreatorTest {
     public void basicTest1(){
         Expression simpleConjunction = PropositionalCompound.create(e3, LogicalOperator.AND, e4);
 
-        Expression<Boolean> cnf = (Expression<Boolean>) simpleConjunction.accept(ConjunctionCreatorVisitor.getInstance(), null);
+        Expression<Boolean> cnf = NormalizationUtil.createCNF(simpleConjunction);
 
         assertEquals(cnf, simpleConjunction);
     }
@@ -238,16 +238,17 @@ public class ConjunctionCreatorTest {
     }
 
     //not needed as quantifiers have to be removed before transformation
-    /*@Test(groups = {"normalization"})
+    @Test(groups = {"normalization"})
     public void quantifierTest(){
         List<Variable<?>> bound = new ArrayList<>();
         bound.add(x);
         bound.add(y);
         Expression quantifiedDisjunction = QuantifierExpression.create(Quantifier.FORALL, bound, disjunction);
-        Expression<Boolean> cnf = (Expression<Boolean>) quantifiedDisjunction.accept(ConjunctionCreatorVisitor.getInstance(), null);
+        Expression<Boolean> cnf = NormalizationUtil.createCNF(quantifiedDisjunction);
 
-        assertEquals(cnf, quantifiedDisjunction);
-    }*/
+        System.out.println(quantifiedDisjunction);
+        System.out.println(cnf);
+    }
 
     @Test(groups = {"normalization"})
     public void andTest(){

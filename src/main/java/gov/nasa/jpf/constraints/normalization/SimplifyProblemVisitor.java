@@ -29,8 +29,10 @@ import gov.nasa.jpf.constraints.types.BuiltinTypes;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
 import gov.nasa.jpf.constraints.util.ExpressionUtil;
 
+import java.util.LinkedList;
+
 public class SimplifyProblemVisitor extends
-        DuplicatingVisitor<Void> {
+        DuplicatingVisitor<LinkedList<Expression<?>>> {
 
     private static final SimplifyProblemVisitor INSTANCE = new SimplifyProblemVisitor();
 
@@ -38,25 +40,42 @@ public class SimplifyProblemVisitor extends
         return INSTANCE;
     }
 
+    LogicalOperator lastOperator;
+    boolean firstVisit = true;
+
     @Override
-    public Expression<?> visit(PropositionalCompound n, Void data) {
+    public Expression<?> visit(PropositionalCompound n, LinkedList data) {
+        //Expression leftChild = visit(n.getLeft(), data);
+        //Expression rightChild = visit(n.getRight(), data);
         Expression leftChild = visit(n.getLeft(), data);
         Expression rightChild = visit(n.getRight(), data);
         LogicalOperator operator = n.getOperator();
+        if(firstVisit){
+            lastOperator = operator;
+            firstVisit = false;
+        }
 
         //TODO: remove duplicates from clauses
         if(operator.equals(LogicalOperator.EQUIV)){
-            if(leftChild instanceof Constant && ((Constant<?>) leftChild).getValue().equals(Boolean.TRUE)){
-                return rightChild;
+            if(leftChild instanceof Constant){
+                if(((Constant<?>) leftChild).getValue().equals(Boolean.TRUE)) {
+                    return rightChild;
+                }
             }
-            if(rightChild instanceof Constant && ((Constant<?>) leftChild).getValue().equals(Boolean.TRUE)){
-                return leftChild;
+            if(rightChild instanceof Constant){
+                if(((Constant<?>) rightChild).getValue().equals(Boolean.TRUE)) {
+                    return leftChild;
+                }
             }
-            if(leftChild instanceof Constant && ((Constant<?>) leftChild).getValue().equals(Boolean.FALSE)){
-                return Negation.create(rightChild);
+            if(leftChild instanceof Constant){
+                if(((Constant<?>) leftChild).getValue().equals(Boolean.FALSE)) {
+                    return Negation.create(rightChild);
+                }
             }
-            if(rightChild instanceof Constant && ((Constant<?>) leftChild).getValue().equals(Boolean.FALSE)){
-                return Negation.create(leftChild);
+            if(rightChild instanceof Constant){
+                if(((Constant<?>) rightChild).getValue().equals(Boolean.FALSE)) {
+                    return Negation.create(leftChild);
+                }
             }
         }
         if(operator.equals(LogicalOperator.AND)){
@@ -64,21 +83,62 @@ public class SimplifyProblemVisitor extends
                 //or rightChild
                 return leftChild;
             }
-            if(leftChild instanceof Negation && rightChild.equals(((Negation) leftChild).getNegated())){
-                return Constant.create(BuiltinTypes.BOOL, Boolean.FALSE);
+            /*if(operator.equals(lastOperator)){
+                if(!data.isEmpty()) {
+                    for (Object e : data) {
+                        if (e.equals(leftChild)) {
+                            data.add(rightChild);
+                            lastOperator = operator;
+                            return rightChild;
+                        }
+                        if (e.equals(rightChild)) {
+                            data.add(leftChild);
+                            lastOperator = operator;
+                            return leftChild;
+                        }
+                    }
+                    data.add(leftChild);
+                    data.add(rightChild);
+                } else {
+                    data.add(leftChild);
+                    data.add(rightChild);
+                }
+            } else {
+                data.clear();
+                data.add(leftChild);
+                data.add(rightChild);
+                lastOperator = operator;
+            }*/
+            //TODO: ergänze, wenn das Obere funktioniert
+            if(leftChild instanceof Negation){
+                if(rightChild.equals(((Negation) leftChild).getNegated())){
+                    return Constant.create(BuiltinTypes.BOOL, Boolean.FALSE);
+                }
             }
-            if(rightChild instanceof Negation && leftChild.equals(((Negation) leftChild).getNegated())){
-                return Constant.create(BuiltinTypes.BOOL, Boolean.FALSE);
+            if(rightChild instanceof Negation){
+                if(leftChild.equals(((Negation) rightChild).getNegated())){
+                    return Constant.create(BuiltinTypes.BOOL, Boolean.FALSE);
+                }
             }
-            if((leftChild instanceof Constant && ((Constant<?>) leftChild).getValue().equals(Boolean.FALSE))
-            || (rightChild instanceof Constant && ((Constant<?>) rightChild).getValue().equals(Boolean.FALSE))){
-                return Constant.create(BuiltinTypes.BOOL, Boolean.FALSE);
+            if(leftChild instanceof Constant){
+                if(((Constant<?>) leftChild).getValue().equals(Boolean.FALSE)) {
+                    return Constant.create(BuiltinTypes.BOOL, Boolean.FALSE);
+                }
             }
-            if(leftChild instanceof Constant && ((Constant<?>) leftChild).getValue().equals(Boolean.TRUE)){
-                return rightChild;
+            if(rightChild instanceof Constant){
+                if(((Constant<?>) rightChild).getValue().equals(Boolean.FALSE)){
+                    return Constant.create(BuiltinTypes.BOOL, Boolean.FALSE);
+                }
             }
-            if(rightChild instanceof Constant && ((Constant<?>) rightChild).getValue().equals(Boolean.TRUE)){
-                return leftChild;
+            if(leftChild instanceof Constant){
+                if(((Constant<?>) leftChild).getValue().equals(Boolean.TRUE)) {
+                    return rightChild;
+                }
+            }
+            if(rightChild instanceof Constant){
+                if(((Constant<?>) rightChild).getValue().equals(Boolean.TRUE)){
+                    return leftChild;
+                }
             }
         }
         if(operator.equals(LogicalOperator.OR)){
@@ -86,45 +146,94 @@ public class SimplifyProblemVisitor extends
                 //or rightChild
                 return leftChild;
             }
-            if(leftChild instanceof Negation && rightChild.equals(((Negation) leftChild).getNegated())){
-                return Constant.create(BuiltinTypes.BOOL, Boolean.TRUE);
+            /*if(operator.equals(lastOperator)){
+                if(!data.isEmpty()) {
+                    for (Object e : data) {
+                        if (e.equals(n.getLeft())) {
+                            data.add(n.getRight().);
+                            lastOperator = operator;
+                            return rightChild;
+                        }
+                        if (e.equals(n.getRight())) {
+                            data.add(n.getLeft());
+                            lastOperator = operator;
+                            return leftChild;
+                        }
+                    }
+                    data.add(n.getLeft());
+                    data.add(n.getRight());
+                } else {
+                    data.add(n.getLeft());
+                    data.add(n.getRight());
+                }
+            } else {
+                data.clear();
+                data.add(n.getLeft());
+                data.add(n.getRight());
+                lastOperator = operator;
+            }*/
+            //TODO: ergänze, wenn das Obere funktioniert
+            if(leftChild instanceof Negation) {
+                if(rightChild.equals(((Negation) leftChild).getNegated())) {
+                    return Constant.create(BuiltinTypes.BOOL, Boolean.TRUE);
+                }
             }
-            if(rightChild instanceof Negation && leftChild.equals(((Negation) leftChild).getNegated())){
-                return Constant.create(BuiltinTypes.BOOL, Boolean.TRUE);
+            if(rightChild instanceof Negation){
+                if(leftChild.equals(((Negation) rightChild).getNegated())) {
+                    return Constant.create(BuiltinTypes.BOOL, Boolean.TRUE);
+                }
             }
-            if((leftChild instanceof Constant && ((Constant<?>) leftChild).getValue().equals(Boolean.TRUE))
-                    || (rightChild instanceof Constant && ((Constant<?>) rightChild).getValue().equals(Boolean.TRUE))){
-                return Constant.create(BuiltinTypes.BOOL, Boolean.TRUE);
+            if(leftChild instanceof Constant) {
+                if (((Constant<?>) leftChild).getValue().equals(Boolean.TRUE)) {
+                    return Constant.create(BuiltinTypes.BOOL, Boolean.TRUE);
+                }
             }
-            if(leftChild instanceof Constant && ((Constant<?>) leftChild).getValue().equals(Boolean.FALSE)){
-                return rightChild;
+            if(rightChild instanceof Constant) {
+                if(((Constant<?>) rightChild).getValue().equals(Boolean.TRUE)) {
+                    return Constant.create(BuiltinTypes.BOOL, Boolean.TRUE);
+                }
             }
-            if(rightChild instanceof Constant && ((Constant<?>) rightChild).getValue().equals(Boolean.FALSE)){
-                return leftChild;
+            if(leftChild instanceof Constant) {
+                if(((Constant<?>) leftChild).getValue().equals(Boolean.FALSE)) {
+                    return rightChild;
+                }
+            }
+            if(rightChild instanceof Constant) {
+                if(((Constant<?>) rightChild).getValue().equals(Boolean.FALSE)) {
+                    return leftChild;
+                }
             }
         }
         if(operator.equals(LogicalOperator.IMPLY)){
-            if(rightChild instanceof Constant && ((Constant<?>) leftChild).getValue().equals(Boolean.TRUE)){
-                return Constant.create(BuiltinTypes.BOOL, Boolean.TRUE);
+            if(rightChild instanceof Constant) {
+                if(((Constant<?>) rightChild).getValue().equals(Boolean.TRUE)) {
+                    return Constant.create(BuiltinTypes.BOOL, Boolean.TRUE);
+                }
             }
-            if(rightChild instanceof Constant && ((Constant<?>) leftChild).getValue().equals(Boolean.FALSE)){
-                return Negation.create(leftChild);
+            if(rightChild instanceof Constant) {
+                if(((Constant<?>) rightChild).getValue().equals(Boolean.FALSE)) {
+                    return Negation.create(leftChild);
+                }
             }
             if(leftChild.equals(rightChild)){
                 return Constant.create(BuiltinTypes.BOOL, Boolean.TRUE);
             }
-            if(leftChild instanceof Constant && ((Constant<?>) leftChild).getValue().equals(Boolean.TRUE)){
-                return rightChild;
+            if(leftChild instanceof Constant){
+                if(((Constant<?>) leftChild).getValue().equals(Boolean.TRUE)) {
+                    return rightChild;
+                }
             }
-            if(leftChild instanceof Constant && ((Constant<?>) leftChild).getValue().equals(Boolean.FALSE)){
-                return Constant.create(BuiltinTypes.BOOL, Boolean.TRUE);
+            if(leftChild instanceof Constant) {
+                if(((Constant<?>) leftChild).getValue().equals(Boolean.FALSE)) {
+                    return Constant.create(BuiltinTypes.BOOL, Boolean.TRUE);
+                }
             }
         }
-        return super.visit(n, data);
+        return n;
     }
 
     @Override
-    public Expression<?> visit(Negation n, Void data) {
+    public Expression<?> visit(Negation n, LinkedList data) {
         Expression negated = n.getNegated();
 
         if(negated.equals(Boolean.TRUE)){
@@ -134,17 +243,17 @@ public class SimplifyProblemVisitor extends
             return Constant.create(BuiltinTypes.BOOL, Boolean.TRUE);
         }
 
-        return super.visit(n, data);
+        return n;
     }
 
     @Override
     //Not needed if LetExpressionRemover is used beforehand
-    public Expression<?> visit(LetExpression let, Void data) {
+    public Expression<?> visit(LetExpression let, LinkedList data) {
         Expression result = let.flattenLetExpression();
         return super.visit(result, data);
     }
 
-    public <T> Expression<T> apply(Expression<T> expr, Void data) {
+    public <T> Expression<T> apply(Expression<T> expr, LinkedList data) {
         return visit(expr, data).requireAs(expr.getType());
     }
 }
