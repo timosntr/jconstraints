@@ -49,14 +49,14 @@ public class XorRemoverTest {
 
     @Test(groups = {"normalization"})
     public void xorTest() {
-        Expression<Boolean> result = (Expression<Boolean>) xorExpression.accept(XorRemoverVisitor.getInstance(), null);
+        Expression<Boolean> result = NormalizationUtil.eliminateXOR(xorExpression);
 
         assertEquals(result, xorFree);
     }
 
     @Test(groups = {"normalization"})
     public void nestedXorTest() {
-        Expression<Boolean> result = (Expression<Boolean>) nestedXor.accept(XorRemoverVisitor.getInstance(), null);
+        Expression<Boolean> result = NormalizationUtil.eliminateXOR(nestedXor);
 
         assertEquals(result, xorFree2);
     }

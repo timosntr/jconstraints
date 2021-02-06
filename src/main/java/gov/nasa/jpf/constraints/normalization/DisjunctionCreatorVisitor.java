@@ -40,6 +40,8 @@ public class DisjunctionCreatorVisitor extends
         return INSTANCE;
     }
 
+    int countDNFSteps;
+
     @Override
     public Expression<?> visit(PropositionalCompound expr, Void data) {
         Expression leftChild = (Expression) visit(expr.getLeft());
@@ -64,6 +66,7 @@ public class DisjunctionCreatorVisitor extends
 
             if (operatorIsAND && leftOpIsOR && rightOpIsOR) {
                 //case: (A OR B) AND (C OR D)
+                countDNFSteps++;
                 Expression result = PropositionalCompound.create(
                         PropositionalCompound.create(
                                 PropositionalCompound.create(leftLeft, LogicalOperator.AND, rightLeft),
@@ -78,6 +81,7 @@ public class DisjunctionCreatorVisitor extends
 
             } else if (operatorIsAND && leftOpIsOR && rightOpIsAND) {
                 //case: (A OR B) AND (C AND D)
+                countDNFSteps++;
                 Expression result = PropositionalCompound.create(
                         PropositionalCompound.create(leftLeft, LogicalOperator.AND, rightChild),
                         LogicalOperator.OR,
@@ -86,6 +90,7 @@ public class DisjunctionCreatorVisitor extends
 
             } else if (operatorIsAND && leftOpIsAND && rightOpIsOR) {
                 //case: (A AND B) AND (C OR D)
+                countDNFSteps++;
                 Expression result = PropositionalCompound.create(
                         PropositionalCompound.create(leftChild, LogicalOperator.AND, rightLeft),
                         LogicalOperator.OR,
@@ -94,6 +99,7 @@ public class DisjunctionCreatorVisitor extends
 
             } else if (operatorIsAND && leftOpIsAND && rightOpIsAND) {
                 //case: (A AND B) AND (C AND D)
+                //don't count this as step as no transformation is performed
                 /*Expression result = PropositionalCompound.create(leftChild, LogicalOperator.OR, rightChild);
                 return result;*/
                 return expr;
@@ -108,6 +114,7 @@ public class DisjunctionCreatorVisitor extends
 
             if (operatorIsAND && leftOpIsOR) {
                 //case: (A OR B) AND (C)
+                countDNFSteps++;
                 Expression result = PropositionalCompound.create(
                         PropositionalCompound.create(leftLeft, LogicalOperator.AND, rightChild),
                         LogicalOperator.OR,
@@ -116,6 +123,7 @@ public class DisjunctionCreatorVisitor extends
 
             } else if (operatorIsAND && leftOpIsAND) {
                 //case: (A AND B) AND (C)
+                //don't count this as step as no transformation is performed
                 /*Expression result = PropositionalCompound.create(leftChild, LogicalOperator.OR, rightChild);
                 return result;*/
                 return expr;
@@ -129,6 +137,7 @@ public class DisjunctionCreatorVisitor extends
 
             if (operatorIsAND && rightOpIsOR) {
                 //case: (A) AND (C OR D)
+                countDNFSteps++;
                 Expression result = PropositionalCompound.create(
                         PropositionalCompound.create(leftChild, LogicalOperator.AND, rightLeft),
                         LogicalOperator.OR,
@@ -137,6 +146,7 @@ public class DisjunctionCreatorVisitor extends
 
             } else if (operatorIsAND && rightOpIsAND) {
                 //case: (A) AND (C AND D)
+                //don't count this as step as no transformation is performed
                 /*Expression result = PropositionalCompound.create(leftChild, LogicalOperator.OR, rightChild);
                 return result;*/
                 return expr;
@@ -144,6 +154,7 @@ public class DisjunctionCreatorVisitor extends
 
         } else if (!leftIsPropComp && !rightIsPropComp) {
             //cases: (A) AND (B); (A) OR (B)
+            //don't count this as step as no transformation is performed
             if (operatorIsOR || operatorIsAND) {
                 return expr;
             }
@@ -252,5 +263,10 @@ public class DisjunctionCreatorVisitor extends
 
     public <T> Expression<T> apply(Expression<T> expr, Void data) {
         return visit(expr, data).requireAs(expr.getType());
+    }
+
+    public int countDNFSteps(Expression expr){
+        apply(expr, null);
+        return countDNFSteps;
     }
 }

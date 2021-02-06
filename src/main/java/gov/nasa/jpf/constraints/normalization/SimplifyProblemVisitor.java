@@ -83,33 +83,38 @@ public class SimplifyProblemVisitor extends
                 //or rightChild
                 return leftChild;
             }
-            /*if(operator.equals(lastOperator)){
+            if(operator.equals(lastOperator)){
                 if(!data.isEmpty()) {
                     for (Object e : data) {
-                        if (e.equals(leftChild)) {
-                            data.add(rightChild);
+                        if (e.equals(n.getLeft())) {
+                            data.add(n.getRight());
                             lastOperator = operator;
-                            return rightChild;
+                            if(!(n.getLeft() instanceof PropositionalCompound)){
+                                return rightChild;
+                            }
+
                         }
-                        if (e.equals(rightChild)) {
-                            data.add(leftChild);
+                        if (e.equals(n.getRight())) {
+                            data.add(n.getLeft());
                             lastOperator = operator;
-                            return leftChild;
+                            if(!(n.getRight() instanceof PropositionalCompound)){
+                                return leftChild;
+                            }
                         }
                     }
-                    data.add(leftChild);
-                    data.add(rightChild);
+                    data.add(n.getLeft());
+                    data.add(n.getRight());
                 } else {
-                    data.add(leftChild);
-                    data.add(rightChild);
+                    data.add(n.getLeft());
+                    data.add(n.getRight());
                 }
             } else {
                 data.clear();
-                data.add(leftChild);
-                data.add(rightChild);
+                data.add(n.getLeft());
+                data.add(n.getRight());
                 lastOperator = operator;
-            }*/
-            //TODO: ergänze, wenn das Obere funktioniert
+            }
+
             if(leftChild instanceof Negation){
                 if(rightChild.equals(((Negation) leftChild).getNegated())){
                     return Constant.create(BuiltinTypes.BOOL, Boolean.FALSE);
@@ -146,18 +151,23 @@ public class SimplifyProblemVisitor extends
                 //or rightChild
                 return leftChild;
             }
-            /*if(operator.equals(lastOperator)){
+            if(operator.equals(lastOperator)){
                 if(!data.isEmpty()) {
                     for (Object e : data) {
                         if (e.equals(n.getLeft())) {
-                            data.add(n.getRight().);
+                            data.add(n.getRight());
                             lastOperator = operator;
-                            return rightChild;
+                            if(!(n.getLeft() instanceof PropositionalCompound)){
+                                return rightChild;
+                            }
+
                         }
                         if (e.equals(n.getRight())) {
                             data.add(n.getLeft());
                             lastOperator = operator;
-                            return leftChild;
+                            if(!(n.getRight() instanceof PropositionalCompound)){
+                                return leftChild;
+                            }
                         }
                     }
                     data.add(n.getLeft());
@@ -171,8 +181,8 @@ public class SimplifyProblemVisitor extends
                 data.add(n.getLeft());
                 data.add(n.getRight());
                 lastOperator = operator;
-            }*/
-            //TODO: ergänze, wenn das Obere funktioniert
+            }
+
             if(leftChild instanceof Negation) {
                 if(rightChild.equals(((Negation) leftChild).getNegated())) {
                     return Constant.create(BuiltinTypes.BOOL, Boolean.TRUE);
@@ -229,7 +239,7 @@ public class SimplifyProblemVisitor extends
                 }
             }
         }
-        return n;
+        return PropositionalCompound.create(leftChild, operator, rightChild);
     }
 
     @Override
@@ -250,7 +260,7 @@ public class SimplifyProblemVisitor extends
     //Not needed if LetExpressionRemover is used beforehand
     public Expression<?> visit(LetExpression let, LinkedList data) {
         Expression result = let.flattenLetExpression();
-        return super.visit(result, data);
+        return visit(result, data);
     }
 
     public <T> Expression<T> apply(Expression<T> expr, LinkedList data) {

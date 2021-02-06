@@ -41,6 +41,8 @@ public class ConjunctionCreatorVisitor extends
         return INSTANCE;
     }
 
+    int countCNFSteps;
+
     @Override
     public Expression<?> visit(PropositionalCompound expr, Void data) {
         Expression leftChild = (Expression) visit(expr.getLeft());
@@ -65,6 +67,7 @@ public class ConjunctionCreatorVisitor extends
 
             if (operatorIsOR && leftOpIsAND && rightOpIsAND) {
                 //case: (A AND B) OR (C AND D)
+                countCNFSteps++;
                 Expression result = PropositionalCompound.create(
                         PropositionalCompound.create(
                                 PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightLeft),
@@ -79,6 +82,7 @@ public class ConjunctionCreatorVisitor extends
 
             } else if (operatorIsOR && leftOpIsAND && rightOpIsOR) {
                 //case: (A AND B) OR (C OR D)
+                countCNFSteps++;
                 Expression result = PropositionalCompound.create(
                         PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightChild),
                         LogicalOperator.AND,
@@ -87,6 +91,7 @@ public class ConjunctionCreatorVisitor extends
 
             } else if (operatorIsOR && leftOpIsOR && rightOpIsAND) {
                 //case: (A OR B) OR (C AND D)
+                countCNFSteps++;
                 Expression result = PropositionalCompound.create(
                         PropositionalCompound.create(leftChild, LogicalOperator.OR, rightLeft),
                         LogicalOperator.AND,
@@ -95,6 +100,7 @@ public class ConjunctionCreatorVisitor extends
 
             } else if (operatorIsOR && leftOpIsOR && rightOpIsOR) {
                 //case: (A OR B) OR (C OR D)
+                //don't count this as step as no transformation is performed
                 /*Expression result = PropositionalCompound.create(leftChild, LogicalOperator.OR, rightChild);
                 return result;*/
                 return expr;
@@ -109,6 +115,7 @@ public class ConjunctionCreatorVisitor extends
 
             if (operatorIsOR && leftOpIsAND) {
                 //case: (A AND B) OR (C)
+                countCNFSteps++;
                 Expression result = PropositionalCompound.create(
                         PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightChild),
                         LogicalOperator.AND,
@@ -117,6 +124,7 @@ public class ConjunctionCreatorVisitor extends
 
             } else if (operatorIsOR && leftOpIsOR) {
                 //case: (A OR B) OR (C)
+                //don't count this as step as no transformation is performed
                 /*Expression result = ExpressionUtil.or(
                         PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightChild),
                         PropositionalCompound.create(leftRight, LogicalOperator.OR, rightChild));
@@ -132,6 +140,7 @@ public class ConjunctionCreatorVisitor extends
 
             if (operatorIsOR && rightOpIsAND) {
                 //case: (A) OR (C AND D)
+                countCNFSteps++;
                 Expression result = PropositionalCompound.create(
                         PropositionalCompound.create(leftChild, LogicalOperator.OR, rightLeft),
                         LogicalOperator.AND,
@@ -140,6 +149,7 @@ public class ConjunctionCreatorVisitor extends
 
             } else if (operatorIsOR && rightOpIsOR) {
                 //case: (A) OR (C OR D)
+                //don't count this as step as no transformation is performed
                 /*Expression result = ExpressionUtil.or(
                         PropositionalCompound.create(leftChild, LogicalOperator.OR, rightLeft),
                         PropositionalCompound.create(leftChild, LogicalOperator.OR, rightRight));
@@ -149,6 +159,7 @@ public class ConjunctionCreatorVisitor extends
 
         } else if (!leftIsPropComp && !rightIsPropComp) {
             //cases: (A) OR (B); (A) AND (B)
+            //don't count this as step as no transformation is performed
             if (operatorIsOR || operatorIsAND) {
                 return expr;
             }
@@ -257,5 +268,10 @@ public class ConjunctionCreatorVisitor extends
 
     public <T> Expression<T> apply(Expression<T> expr, Void data) {
         return visit(expr, data).requireAs(expr.getType());
+    }
+
+    public int countCNFSteps(Expression expr){
+        apply(expr, null);
+        return countCNFSteps;
     }
 }

@@ -58,7 +58,7 @@ public class QuantifierTest {
         List<Variable<?>> bound = new ArrayList<Variable<?>>();
         bound.add(x);
         Expression<Boolean> quantified = Negation.create(PropositionalCompound.create(QuantifierExpression.create(Quantifier.EXISTS, bound, e3), LogicalOperator.OR, negE3));
-        boolean checkExpression = (boolean) quantified.accept(QuantifierCheckVisitor.getInstance(), null);
+        boolean checkExpression = NormalizationUtil.quantifierCheck(quantified);
 
         assertEquals(checkExpression, true);
     }

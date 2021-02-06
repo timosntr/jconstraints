@@ -40,9 +40,12 @@ public class MiniScopingVisitor extends
 
     private static final MiniScopingVisitor INSTANCE = new MiniScopingVisitor();
 
-    public static MiniScopingVisitor getInstance(){
+    public static MiniScopingVisitor getInstance() {
         return INSTANCE;
     }
+
+    int countMiniScopeSteps;
+    int operatorTransformations;
 
     @Override
     public Expression<?> visit(QuantifierExpression q, Void data) {
@@ -53,10 +56,10 @@ public class MiniScopingVisitor extends
 
         //if quantified body is not a Propositional Compound, mini scoping is done here
         //negations have to be pushed beforehand!
-        /*if(body instanceof QuantifierExpression){
-            return QuantifierExpression.create(quantifier, bound, body);
-        }*/
-        if(!(body instanceof PropositionalCompound)){
+    /*if(body instanceof QuantifierExpression){
+        return QuantifierExpression.create(quantifier, bound, body);
+    }*/
+        if (!(body instanceof PropositionalCompound)) {
             return q;
         }
         //if we are here, body is a Propositional Compound and there is a possibility of a smaller scope
@@ -75,20 +78,20 @@ public class MiniScopingVisitor extends
         Set<Variable<?>> freeRight = ExpressionUtil.freeVariables(rightChild);
         boolean boundInFreeRight = false;
 
-        if(freeLeft != null){
-            for(Variable v : bound){
-                for(Variable f : freeLeft){
-                    if(f.equals(v)){
+        if (freeLeft != null) {
+            for (Variable v : bound) {
+                for (Variable f : freeLeft) {
+                    if (f.equals(v)) {
                         boundInFreeLeft = true;
                     }
                 }
             }
         }
 
-        if(freeRight != null){
-            for(Variable v : bound){
-                for(Variable f : freeRight){
-                    if(f.equals(v)){
+        if (freeRight != null) {
+            for (Variable v : bound) {
+                for (Variable f : freeRight) {
+                    if (f.equals(v)) {
                         boundInFreeRight = true;
                     }
                 }
@@ -98,43 +101,45 @@ public class MiniScopingVisitor extends
         List<Variable<?>> newBoundLeft = new ArrayList<>();
         List<Variable<?>> newBoundRight = new ArrayList<>();
 
-        if(!boundInFreeLeft && !boundInFreeRight){
+        if (!boundInFreeLeft && !boundInFreeRight) {
             //no bound variables in children
             //simplification of expression
             return body;
-        }else if(!boundInFreeLeft && boundInFreeRight){
+        } else if (!boundInFreeLeft && boundInFreeRight) {
             //no bound variables in left child of the Propositional Compound
             //TODO: added
             newBoundRight.clear();
-            for(Variable b : bound){
-                for(Variable f : freeRight){
-                    if(f.equals(b) && !newBoundRight.contains(b)){
+            for (Variable b : bound) {
+                for (Variable f : freeRight) {
+                    if (f.equals(b) && !newBoundRight.contains(b)) {
                         newBoundRight.add(b);
                     }
                 }
             }
             Expression newLeft = leftChild;
             //visit again because further miniscoping could be possible
+            countMiniScopeSteps++;
             Expression newRight = visit(QuantifierExpression.create(quantifier, newBoundRight, rightChild), data);
             return PropositionalCompound.create(newLeft, operator, newRight);
 
-        } else if(boundInFreeLeft && !boundInFreeRight){
+        } else if (boundInFreeLeft && !boundInFreeRight) {
             //no bound variables in right child of the Propositional Compound
             //TODO: added
             newBoundLeft.clear();
-            for(Variable b : bound){
-                for(Variable f : freeLeft){
-                    if(f.equals(b) && !newBoundLeft.contains(b)){
+            for (Variable b : bound) {
+                for (Variable f : freeLeft) {
+                    if (f.equals(b) && !newBoundLeft.contains(b)) {
                         newBoundLeft.add(b);
                     }
                 }
             }
             //visit again because further miniscoping could be possible
+            countMiniScopeSteps++;
             Expression newLeft = visit(QuantifierExpression.create(quantifier, newBoundLeft, leftChild), data);
             Expression newRight = rightChild;
             return PropositionalCompound.create(newLeft, operator, newRight);
 
-        } else if(boundInFreeLeft && boundInFreeRight) {
+        } else if (boundInFreeLeft && boundInFreeRight) {
             //TODO: added
             newBoundLeft.clear();
             for (Variable b : bound) {
@@ -158,6 +163,7 @@ public class MiniScopingVisitor extends
                     //quantifier can be pushed into the subformulas
                     //TODO: added
                     //visit again because further miniscoping could be possible
+                    countMiniScopeSteps++;
                     Expression newLeft = visit(QuantifierExpression.create(quantifier, newBoundLeft, leftChild), data);
                     Expression newRight = visit(QuantifierExpression.create(quantifier, newBoundRight, rightChild), data);
                     return PropositionalCompound.create(newLeft, operator, newRight);
@@ -168,6 +174,7 @@ public class MiniScopingVisitor extends
                     if (result instanceof PropositionalCompound) {
                         LogicalOperator newOperator = ((PropositionalCompound) result).getOperator();
                         if (newOperator == LogicalOperator.AND) {
+                            operatorTransformations++;
                             return visit(QuantifierExpression.create(quantifier, bound, result));
                         }
                     }
@@ -180,6 +187,7 @@ public class MiniScopingVisitor extends
                 if (operator == LogicalOperator.OR) {
                     //quantifier can be pushed into the subformulas
                     //TODO: added
+                    countMiniScopeSteps++;
                     Expression newLeft = visit(QuantifierExpression.create(quantifier, newBoundLeft, leftChild), data);
                     Expression newRight = visit(QuantifierExpression.create(quantifier, newBoundRight, rightChild), data);
                     return PropositionalCompound.create(newLeft, operator, newRight);
@@ -190,6 +198,7 @@ public class MiniScopingVisitor extends
                     if (result instanceof PropositionalCompound) {
                         LogicalOperator newOperator = ((PropositionalCompound) result).getOperator();
                         if (newOperator == LogicalOperator.OR) {
+                            operatorTransformations++;
                             return visit(QuantifierExpression.create(quantifier, bound, result));
                         }
                     }
@@ -209,6 +218,16 @@ public class MiniScopingVisitor extends
 
     public <T> Expression<T> apply(Expression<T> expr, Void data) {
         return visit(expr, data).requireAs(expr.getType());
+    }
+
+    public int countMiniScopeSteps(Expression expr){
+        apply(expr, null);
+        return countMiniScopeSteps;
+    }
+
+    public int countMiniScopeOperatorTransformations(Expression expr){
+        apply(expr, null);
+        return operatorTransformations;
     }
 
 }

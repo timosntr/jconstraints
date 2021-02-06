@@ -57,14 +57,14 @@ public class LetExpressionRemoverTest {
 
     @Test(groups = {"normalization"})
     public void letTest() {
-        Expression<Boolean> result = (Expression<Boolean>) letExpression.accept(LetExpressionRemoverVisitor.getInstance(), null);
+        Expression<Boolean> result = NormalizationUtil.eliminateLetExpressions(letExpression);
 
         assertEquals(result, letFree);
     }
 
     @Test(groups = {"normalization"})
     public void nestedLetTest() {
-        Expression<Boolean> result = (Expression<Boolean>) nestedLet.accept(LetExpressionRemoverVisitor.getInstance(), null);
+        Expression<Boolean> result = NormalizationUtil.eliminateLetExpressions(nestedLet);
 
         assertEquals(result, letFree2);
         System.out.println(result);

@@ -54,7 +54,6 @@ public class SkolemizationTest {
 
     Expression e1 = NumericBooleanExpression.create(x, NumericComparator.LT, c1);
     Expression e2 = NumericBooleanExpression.create(y, NumericComparator.LE, c2);
-    Expression e3 = NumericBooleanExpression.create(x, NumericComparator.GE, c1);
     Expression e4 = NumericBooleanExpression.create(y, NumericComparator.EQ, c2);
     Expression e5 = NumericBooleanExpression.create(x, NumericComparator.GE, y);
     Expression e6 = PropositionalCompound.create(b1, LogicalOperator.OR, e1);
@@ -62,15 +61,9 @@ public class SkolemizationTest {
 
     Expression con1 = PropositionalCompound.create(e1, LogicalOperator.AND, e4);
 
-    Expression disjunction = PropositionalCompound.create(
-            PropositionalCompound.create(e3, LogicalOperator.AND, e4),
-            LogicalOperator.OR,
-            b1);
-
     @Test(groups = {"normalization"})
     //only forall
     public void forallTest(){
-        List<Variable<?>> args = new ArrayList<>();
         List<Variable<?>> bound = new ArrayList<>();
         bound.add(x);
         Expression quantified = QuantifierExpression.create(Quantifier.FORALL, bound, con1);
@@ -82,11 +75,7 @@ public class SkolemizationTest {
     }
 
     @Test(groups = {"normalization"})
-    //only forall
-    //ToDo: if vars in e8 existentially quantified, then correct,
-    // if not -> don't skolemiza free vars which are outside the scope of a quantifier
     public void forallTest2(){
-        List<Variable<?>> args = new ArrayList<>();
         List<Variable<?>> bound = new ArrayList<>();
         bound.add(x);
         Expression quantified = ExpressionUtil.or(e8,
@@ -101,7 +90,6 @@ public class SkolemizationTest {
     @Test(groups = {"normalization"})
     //only outer exists, no forall
     public void outerExistsTest1(){
-        List<Variable<?>> args = new ArrayList<>();
         List<Variable<?>> bound1 = new ArrayList<Variable<?>>();
         bound1.add(x);
         List<Variable<?>> bound2 = new ArrayList<Variable<?>>();
@@ -120,7 +108,6 @@ public class SkolemizationTest {
     @Test(groups = {"normalization"})
     //only outer exists, inner forall
     public void outerExistsTest2(){
-        List<Variable<?>> args = new ArrayList<>();
         List<Variable<?>> bound1 = new ArrayList<Variable<?>>();
         bound1.add(x);
         List<Variable<?>> bound2 = new ArrayList<Variable<?>>();
@@ -157,7 +144,7 @@ public class SkolemizationTest {
         //TODO: miniScope creates overflow?
         Expression<Boolean> renamed = NormalizationUtil.renameAllBoundVars(quantified);
         Expression<Boolean> mini = NormalizationUtil.miniScope(renamed);
-        Expression<Boolean> skolemized = (Expression<Boolean>) mini.accept(SkolemizationVisitor.getInstance(), args);
+        Expression<Boolean> skolemized = NormalizationUtil.skolemize(mini);
         System.out.println(quantified);
         System.out.println(renamed);
         System.out.println(mini);
@@ -167,7 +154,6 @@ public class SkolemizationTest {
     @Test(groups = {"normalization"})
     //multiple exists
     public void multiplePathsTest1(){
-        List<Variable<?>> args = new ArrayList<>();
         List<Variable<?>> bound1 = new ArrayList<>();
         bound1.add(x);
         List<Variable<?>> bound2 = new ArrayList<>();
@@ -189,7 +175,6 @@ public class SkolemizationTest {
     @Test(groups = {"normalization"})
     //multiple exists
     public void multiplePathsTest2(){
-        List<Variable<?>> args = new ArrayList<>();
         List<Variable<?>> bound1 = new ArrayList<>();
         bound1.add(x);
         List<Variable<?>> bound3 = new ArrayList<>();
@@ -207,7 +192,6 @@ public class SkolemizationTest {
     @Test(groups = {"normalization"})
     //multiple exists
     public void multipleExistsTest(){
-        List<Variable<?>> args = new ArrayList<>();
         List<Variable<?>> bound1 = new ArrayList<>();
         bound1.add(x);
         List<Variable<?>> bound2 = new ArrayList<>();
@@ -227,7 +211,7 @@ public class SkolemizationTest {
                         ExpressionUtil.and(
                                 QuantifierExpression.create(Quantifier.FORALL, bound1, e8),
                                 b2)));
-        Expression<Boolean> mini = (Expression<Boolean>) quantified.accept(MiniScopingVisitor.getInstance(), null);
+        Expression<Boolean> mini = NormalizationUtil.miniScope(quantified);
         Expression<Boolean> skolemized = NormalizationUtil.skolemize(mini);
 
         System.out.println(quantified);
@@ -239,7 +223,6 @@ public class SkolemizationTest {
     public void nameClashTest(){
         HashMap<String, String> data = new HashMap<>();
         Collection<Variable<?>> test = new ArrayList<>();
-        List<Variable<?>> args = new ArrayList<>();
         List<Variable<?>> bound1 = new ArrayList<>();
         bound1.add(x);
         List<Variable<?>> bound2 = new ArrayList<>();
@@ -250,7 +233,7 @@ public class SkolemizationTest {
         Expression quantified = ExpressionUtil.and(
                 QuantifierExpression.create(Quantifier.EXISTS, bound1,
                         ExpressionUtil.and(e7, QuantifierExpression.create(Quantifier.FORALL, bound2, e2))));
-        Expression<Boolean> renamed = (Expression<Boolean>) quantified.accept(RenamingBoundVarVisitor.getInstance(), data);
+        Expression<Boolean> renamed = NormalizationUtil.renameAllBoundVars(quantified);
         Expression<Boolean> skolemized = NormalizationUtil.skolemize(quantified);
 
         quantified.collectFreeVariables(test);

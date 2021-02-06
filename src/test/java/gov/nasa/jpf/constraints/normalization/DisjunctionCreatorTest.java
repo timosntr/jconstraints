@@ -69,7 +69,7 @@ public class DisjunctionCreatorTest {
     public void basicTest1(){
         Expression simpleConjunction = PropositionalCompound.create(e3, LogicalOperator.AND, e4);
 
-        Expression<Boolean> dnf = (Expression<Boolean>) simpleConjunction.accept(DisjunctionCreatorVisitor.getInstance(), null);
+        Expression<Boolean> dnf = NormalizationUtil.createDNF(simpleConjunction);
 
         assertEquals(dnf, simpleConjunction);
     }
@@ -79,7 +79,7 @@ public class DisjunctionCreatorTest {
     public void basicTest2(){
         Expression simpleDisjunction = PropositionalCompound.create(e3, LogicalOperator.OR, e4);
 
-        Expression<Boolean> dnf = (Expression<Boolean>) simpleDisjunction.accept(DisjunctionCreatorVisitor.getInstance(), null);
+        Expression<Boolean> dnf = NormalizationUtil.createDNF(simpleDisjunction);
 
         assertEquals(dnf, simpleDisjunction);
     }
@@ -87,7 +87,7 @@ public class DisjunctionCreatorTest {
     @Test(groups = {"normalization"})
     //case: (A OR B) AND C
     public void conjunctionTest(){
-        Expression<Boolean> dnf = (Expression<Boolean>) conjunction.accept(DisjunctionCreatorVisitor.getInstance(), null);
+        Expression<Boolean> dnf = NormalizationUtil.createDNF(conjunction);
 
         assertEquals(dnf, expected);
     }
@@ -100,7 +100,7 @@ public class DisjunctionCreatorTest {
                 LogicalOperator.AND,
                 b1);
 
-        Expression<Boolean> dnf = (Expression<Boolean>) conjunction2.accept(DisjunctionCreatorVisitor.getInstance(), null);
+        Expression<Boolean> dnf = NormalizationUtil.createDNF(conjunction2);
 
         assertEquals(dnf, conjunction2);
     }
@@ -113,7 +113,7 @@ public class DisjunctionCreatorTest {
                 LogicalOperator.OR,
                 PropositionalCompound.create(b1, LogicalOperator.AND, b2));
 
-        Expression<Boolean> dnf = (Expression<Boolean>) disjunction1.accept(DisjunctionCreatorVisitor.getInstance(), null);
+        Expression<Boolean> dnf = NormalizationUtil.createDNF(disjunction1);
 
         assertEquals(dnf, disjunction1);
     }
@@ -130,7 +130,7 @@ public class DisjunctionCreatorTest {
                 LogicalOperator.OR,
                 PropositionalCompound.create(b1, LogicalOperator.AND, e4));
 
-        Expression<Boolean> dnf = (Expression<Boolean>) conjunction3.accept(DisjunctionCreatorVisitor.getInstance(), null);
+        Expression<Boolean> dnf = NormalizationUtil.createDNF(conjunction3);
 
         assertEquals(dnf, expected3);
     }
@@ -143,7 +143,7 @@ public class DisjunctionCreatorTest {
                 LogicalOperator.AND,
                 PropositionalCompound.create(e3, LogicalOperator.AND, e4));
 
-        Expression<Boolean> dnf = (Expression<Boolean>) conjunction4.accept(DisjunctionCreatorVisitor.getInstance(), null);
+        Expression<Boolean> dnf = NormalizationUtil.createDNF(conjunction4);
 
         assertEquals(dnf, conjunction4);
     }
@@ -164,7 +164,7 @@ public class DisjunctionCreatorTest {
                         PropositionalCompound.create(e4, LogicalOperator.AND, e2))
                 );
 
-        Expression<Boolean> dnf = (Expression<Boolean>) conjunction5.accept(DisjunctionCreatorVisitor.getInstance(), null);
+        Expression<Boolean> dnf = NormalizationUtil.createDNF(conjunction5);
 
         assertEquals(dnf, expected);
     }
@@ -174,7 +174,7 @@ public class DisjunctionCreatorTest {
     public void conjunctionTest6(){
         Expression conjunction6 = PropositionalCompound.create(con1, LogicalOperator.AND, con2);
 
-        Expression<Boolean> dnf = (Expression<Boolean>) conjunction6.accept(DisjunctionCreatorVisitor.getInstance(), null);
+        Expression<Boolean> dnf = NormalizationUtil.createDNF(conjunction6);
 
         assertEquals(dnf, conjunction6);
     }
@@ -184,7 +184,7 @@ public class DisjunctionCreatorTest {
     public void conjunctionNestedTest(){
         Expression conjunction6 = PropositionalCompound.create(con1, LogicalOperator.AND, con3);
 
-        Expression<Boolean> dnf = (Expression<Boolean>) conjunction6.accept(DisjunctionCreatorVisitor.getInstance(), null);
+        Expression<Boolean> dnf = NormalizationUtil.createDNF(conjunction6);
         System.out.print(dnf);
     }
 
@@ -197,7 +197,7 @@ public class DisjunctionCreatorTest {
                 LogicalOperator.OR,
                 PropositionalCompound.create(e4, LogicalOperator.AND, con1));
 
-        Expression<Boolean> dnf = (Expression<Boolean>) conjunction7.accept(DisjunctionCreatorVisitor.getInstance(), null);
+        Expression<Boolean> dnf = NormalizationUtil.createDNF(conjunction7);
 
         assertEquals(dnf, expected);
     }
@@ -211,7 +211,7 @@ public class DisjunctionCreatorTest {
                 LogicalOperator.OR,
                 PropositionalCompound.create(con1, LogicalOperator.AND, e4));
 
-        Expression<Boolean> dnf = (Expression<Boolean>) conjunction8.accept(DisjunctionCreatorVisitor.getInstance(), null);
+        Expression<Boolean> dnf = NormalizationUtil.createDNF(conjunction8);
 
         assertEquals(dnf, expected);
     }
@@ -219,7 +219,7 @@ public class DisjunctionCreatorTest {
     @Test(groups = {"normalization"})
     //A AND ((A OR B) AND C)
     public void nestedConjunctionTest(){
-        Expression<Boolean> dnf = (Expression<Boolean>) nestedConjunction.accept(DisjunctionCreatorVisitor.getInstance(), null);
+        Expression<Boolean> dnf = NormalizationUtil.createDNF(nestedConjunction);
         Expression nestedExpected = PropositionalCompound.create(
                 PropositionalCompound.create(
                         e3,
@@ -244,7 +244,7 @@ public class DisjunctionCreatorTest {
                                 LogicalOperator.OR,
                                 PropositionalCompound.create(b1, LogicalOperator.OR, b2)));
 
-        Expression<Boolean> dnf = (Expression<Boolean>) and.accept(DisjunctionCreatorVisitor.getInstance(), null);
+        Expression<Boolean> dnf = NormalizationUtil.createDNF(and);
 
         assertEquals(dnf, and);
     }
@@ -259,7 +259,7 @@ public class DisjunctionCreatorTest {
                         LogicalOperator.AND,
                         PropositionalCompound.create(e3, LogicalOperator.OR, e4)));
 
-        Expression<Boolean> dnf = (Expression<Boolean>) nested.accept(DisjunctionCreatorVisitor.getInstance(), null);
+        Expression<Boolean> dnf = NormalizationUtil.createDNF(nested);
 
         Expression expected =
                 PropositionalCompound.create(
@@ -301,7 +301,7 @@ public class DisjunctionCreatorTest {
         Expression expected = ExpressionUtil.or(ExpressionUtil.or(ExpressionUtil.and(b1, b1), ExpressionUtil.and(b1, ExpressionUtil.and(b1, b2))),
                 ExpressionUtil.or(ExpressionUtil.and(b2, b1), ExpressionUtil.and(b2, ExpressionUtil.and(b1, b2))));
 
-        Expression<Boolean> dnf = (Expression<Boolean>) nested2.accept(DisjunctionCreatorVisitor.getInstance(), null);
+        Expression<Boolean> dnf = NormalizationUtil.createDNF(nested2);
 
         assertEquals(dnf, expected);
     }

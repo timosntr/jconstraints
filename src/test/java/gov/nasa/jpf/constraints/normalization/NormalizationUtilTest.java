@@ -27,39 +27,153 @@ import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.types.BuiltinTypes;
+import gov.nasa.jpf.constraints.util.ExpressionUtil;
 import org.testng.annotations.Test;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.testng.Assert.assertEquals;
 
 public class NormalizationUtilTest {
 
     Variable<Integer> x = Variable.create(BuiltinTypes.SINT32, "x");
     Variable<Integer> y = Variable.create(BuiltinTypes.SINT32, "y");
+    Variable<Boolean> b = Variable.create(BuiltinTypes.BOOL, "b");
     Variable<Boolean> b1 = Variable.create(BuiltinTypes.BOOL, "b1");
     Variable<Boolean> b2 = Variable.create(BuiltinTypes.BOOL, "b2");
+    Variable<Integer> p = Variable.create(BuiltinTypes.SINT32, "p");
+    Variable<Integer> q = Variable.create(BuiltinTypes.SINT32, "q");
 
     Constant<Integer> c1 = Constant.create(BuiltinTypes.SINT32, 1);
     Constant<Integer> c2 = Constant.create(BuiltinTypes.SINT32, 2);
 
     Expression e1 = NumericBooleanExpression.create(x, NumericComparator.LT, c1);
     Expression e2 = NumericBooleanExpression.create(y, NumericComparator.LE, c2);
+    Expression e3 = NumericBooleanExpression.create(p, NumericComparator.EQ, c2);
 
     Expression con1 = PropositionalCompound.create(e1, LogicalOperator.AND, e2);
     Expression dis1 = PropositionalCompound.create(e1, LogicalOperator.OR, e2);
-    Expression xor = PropositionalCompound.create(con1, LogicalOperator.XOR, e2);
+    Expression xor2 = PropositionalCompound.create(e1, LogicalOperator.XOR, e2);
+    Expression xor1 = PropositionalCompound.create(xor2, LogicalOperator.XOR, e2);
     Expression imply = PropositionalCompound.create(con1, LogicalOperator.IMPLY, e2);
-    Expression negation1 = Negation.create(xor);
+    Expression negation1 = Negation.create(xor1);
     Expression negation2 = Negation.create(imply);
 
     @Test(groups = {"normalization"})
-    public void basicTest1(){
-        Expression result = NormalizationUtil.createNNF(negation1);
-        System.out.println(negation1);
-        System.out.println(result);
+    public void quantifierCounterTest(){
+        List<Variable<?>> bound1 = new ArrayList<>();
+        bound1.add(x);
+        List<Variable<?>> bound3 = new ArrayList<>();
+        bound3.add(y);
+        Expression quantified = ExpressionUtil.and(
+                QuantifierExpression.create(Quantifier.FORALL, bound1, e1),
+                QuantifierExpression.create(Quantifier.EXISTS, bound3, e2));
+        int count = NormalizationUtil.countQuantifiers(quantified);
+
+        assertEquals(count, 2);
     }
 
     @Test(groups = {"normalization"})
-    public void basicTest2(){
-        Expression result = NormalizationUtil.createNNF(negation2);
-        System.out.println(negation2);
-        System.out.println(result);
+    public void iteCountTest(){
+        Expression<Boolean> compound = NumericBooleanExpression.create(
+                IfThenElse.create(b, IfThenElse.create(b, x, y), y),
+                NumericComparator.EQ,
+                NumericCompound.create(
+                        IfThenElse.create(b2, p, q),
+                        NumericOperator.PLUS,
+                        IfThenElse.create(b2, p, q)));
+
+        int count = NormalizationUtil.countItes(compound);
+
+        assertEquals(count, 4);
+    }
+
+    @Test(groups = {"normalization"})
+    public void iteCheckTest(){
+        Expression<Boolean> compound = NumericBooleanExpression.create(
+                NumericCompound.create(IfThenElse.create(b, x, y),NumericOperator.PLUS, y),
+                NumericComparator.EQ,
+                NumericCompound.create(
+                        IfThenElse.create(b2, p, q),
+                        NumericOperator.PLUS,
+                        IfThenElse.create(b2, p, q)));
+
+        boolean ite = NormalizationUtil.ifThenElseCheck(compound);
+
+        assertEquals(ite, true);
+    }
+
+    @Test(groups = {"normalization"})
+    public void equivalenceCountTest(){
+        Expression p1 = PropositionalCompound.create(e1, LogicalOperator.AND, e2);
+        Expression p3 = PropositionalCompound.create(e1, LogicalOperator.EQUIV, e2);
+
+        Expression<Boolean> containsEquiv = PropositionalCompound.create(p1, LogicalOperator.EQUIV, p3);
+
+        int count = NormalizationUtil.countEquivalences(containsEquiv);
+
+        assertEquals(count, 2);
+    }
+
+    @Test(groups = {"normalization"})
+    public void conjunctionCountTest(){
+        Expression con1 = PropositionalCompound.create(e3, LogicalOperator.AND, e1);
+        Expression con2 = PropositionalCompound.create(e1, LogicalOperator.AND, e2);
+        Expression conjunction = PropositionalCompound.create(con1, LogicalOperator.AND, con2);
+
+        int count = NormalizationUtil.countConjunctions(conjunction);
+
+        assertEquals(count, 3);
+    }
+
+    @Test(groups = {"normalization"})
+    public void disjunctionCountTest(){
+        Expression con1 = PropositionalCompound.create(e3, LogicalOperator.AND, e1);
+        Expression dis2 = PropositionalCompound.create(e1, LogicalOperator.OR, e2);
+        Expression disjunction = PropositionalCompound.create(con1, LogicalOperator.OR, dis2);
+
+        int count = NormalizationUtil.countDisjunctions(disjunction);
+
+        assertEquals(count, 2);
+    }
+
+    @Test(groups = {"normalization"})
+    public void negationCountTest(){
+        Expression disjunction = Negation.create(PropositionalCompound.create(negation1, LogicalOperator.OR, negation2));
+
+        int count = NormalizationUtil.countNegations(disjunction);
+
+        assertEquals(count, 3);
+    }
+
+    @Test(groups = {"normalization"})
+    public void xorCountTest(){
+        int count = NormalizationUtil.countXORs(xor1);
+
+        assertEquals(count, 2);
+    }
+
+    @Test(groups = {"normalization"})
+    public void mixedQuantifiersTest(){
+        List<Variable<?>> bound1 = new ArrayList<>();
+        bound1.add(x);
+        List<Variable<?>> bound3 = new ArrayList<>();
+        bound3.add(y);
+        Expression quantified = ExpressionUtil.and(
+                QuantifierExpression.create(Quantifier.FORALL, bound1, e1),
+                QuantifierExpression.create(Quantifier.EXISTS, bound3, e2));
+        boolean mixed = NormalizationUtil.mixedQuantifierCheck(quantified);
+        assertEquals(mixed, true);
+    }
+
+    @Test(groups = {"normalization"})
+    public void maxClauseLengthTest(){
+        Expression con1 = PropositionalCompound.create(e3, LogicalOperator.AND, e1);
+        Expression dis2 = PropositionalCompound.create(e1, LogicalOperator.OR, e2);
+        Expression dnf = PropositionalCompound.create(con1, LogicalOperator.OR, dis2);
+
+        int max = NormalizationUtil.maxDisjunctionLength(dnf);
+        assertEquals(max, 2);
     }
 }

@@ -58,14 +58,14 @@ public class ImplicationRemoverTest {
 
     @Test(groups = {"normalization"})
     public void implicationRemoverTest() {
-        Expression<Boolean> result = (Expression<Boolean>) containsImply.accept(ImplicationRemoverVisitor.getInstance(), null);
+        Expression<Boolean> result = NormalizationUtil.eliminateImplication(containsImply);
         System.out.println(result);
         assertEquals(result, implyFree);
     }
 
     @Test(groups = {"normalization"})
     public void nestedImplicationRemoverTest() {
-        Expression<Boolean> result = (Expression<Boolean>) containsImply2.accept(ImplicationRemoverVisitor.getInstance(), null);
+        Expression<Boolean> result = NormalizationUtil.eliminateImplication(containsImply2);
 
         assertEquals(result, implyFree2);
     }

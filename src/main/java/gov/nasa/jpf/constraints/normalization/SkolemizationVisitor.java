@@ -34,7 +34,6 @@ import gov.nasa.jpf.constraints.util.ExpressionUtil;
 
 import java.util.*;
 
-//ToDo: refactor code
 //Creation of an anti prenex form (scope of Quantifiers should be minimized)
 //Quantifiers have to be handled ahead of ConjunctionCreator
 public class SkolemizationVisitor extends
@@ -151,16 +150,6 @@ public class SkolemizationVisitor extends
         return result;
     }
 
-    /*@Override
-    public <E> Expression<?> visit(IfThenElse<E> n, List<Variable<?>> data) {
-
-        Expression newIfCond = visit(n.getIf(), data);
-        Expression newThenExpr = visit(n.getThen(), data);
-        Expression newElseExpr = visit(n.getElse(), data);
-
-        return IfThenElse.create(newIfCond, newThenExpr, newElseExpr);
-    }*/
-
     public <T> Expression<T> apply(Expression<T> expr, List<Variable<?>> data) {
         functionNames = NormalizationUtil.collectFunctionNames(expr);
         freeVars = ExpressionUtil.freeVariables(expr);
@@ -183,7 +172,6 @@ public class SkolemizationVisitor extends
 
             Set<String> skolemizedFreeVars = toSkolemize.keySet();
             for(String s : skolemizedFreeVars){
-                //TODO
                 while(functionNames.contains(s)) {
                     id[0]++;
                     s = "SK.f.constant." + id[0] + "." + s;

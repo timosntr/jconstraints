@@ -27,6 +27,7 @@ import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.expressions.functions.FunctionExpression;
+import gov.nasa.jpf.constraints.normalization.analysis.QuantifierCounterVisitor;
 import gov.nasa.jpf.constraints.normalization.experimentalVisitors.ModifiedIfThenElseRemoverVisitor;
 import gov.nasa.jpf.constraints.normalization.experimentalVisitors.ModifiedNegatingVisitor;
 import gov.nasa.jpf.constraints.types.Type;
@@ -37,11 +38,10 @@ public class NormalizationUtil {
 
     //ToDo: further normalizing methods (order, dependencies...)
     //ToDo: normalize (mit quantifiercheck und dann entsprechender aufruf des passenden algorithmus?)
-    //ToDo: method for counting clauses
 
-    //ToDo: fix skolemization
     public static <E> Expression<E> createCNFforMatrix(Expression<E> e) {
-        Expression nnf = createNNF(e);
+        Expression simplified = simplifyProblem(e);
+        Expression nnf = createNNF(simplified);
         if (!nnf.equals(null)) {
             Expression renamed = renameAllBoundVars(nnf);
             //miniscoping is only senseful if there is at least an EXISTS after creation of nnf
@@ -58,10 +58,15 @@ public class NormalizationUtil {
                 List<? extends Variable<?>> bound = ((QuantifierExpression) prenex).getBoundVariables();
                 Expression body = ((QuantifierExpression) prenex).getBody();
                 Expression matrix = ConjunctionCreatorVisitor.getInstance().apply(body, null);
+                //Expression simplifiedMatrix = simplifyProblem(matrix);
+                //Expression result = QuantifierExpression.create(q, bound, simplifiedMatrix);
                 Expression result = QuantifierExpression.create(q, bound, matrix);
                 return result;
             } else {
                 return ConjunctionCreatorVisitor.getInstance().apply(prenex, null);
+                //Expression cnf = ConjunctionCreatorVisitor.getInstance().apply(prenex, null);
+                //Expression simplifiedCNF = simplifyProblem(cnf);
+                //return simplifiedCNF;
             }
         } else {
             throw new UnsupportedOperationException("Creation of NNF failed, no CNF created!");
@@ -69,17 +74,24 @@ public class NormalizationUtil {
     }
 
     public static <E> Expression<E> createCNF(Expression<E> e) {
+
+        //Expression simplified = simplifyProblem(e);
         Expression nnf = createNNF(e);
+        //Expression simplified = simplifyProblem(nnf);
         if (!nnf.equals(null)) {
             return ConjunctionCreatorVisitor.getInstance().apply(nnf, null);
+            //Expression cnf = ConjunctionCreatorVisitor.getInstance().apply(simplified, null);
+            //Expression simplifiedCNF = simplifyProblem(cnf);
+            //return simplifiedCNF;
         } else {
             throw new UnsupportedOperationException("Creation of NNF failed, no CNF created!");
         }
     }
 
     public static <E> Expression<E> simplifyProblem(Expression<E> e) {
+        Expression noLet = eliminateLetExpressions(e);
         LinkedList<Expression<?>> data = new LinkedList<>();
-        return SimplifyProblemVisitor.getInstance().apply(e, data);
+        return SimplifyProblemVisitor.getInstance().apply(noLet, data);
     }
 
     public static <E> Expression<E> createCNFNoQuantorHandling(Expression<E> e) {
@@ -88,9 +100,10 @@ public class NormalizationUtil {
 
     //nnf has to be created beforehand
     public static <E> Expression<E> createDNF(Expression<E> e) {
-        Expression nnf = createNNF(e);
+        Expression simplified = simplifyProblem(e);
+        Expression nnf = createNNF(simplified);
         if (!nnf.equals(null)) {
-            if(quantifierCheck(e)){
+            if(quantifierCheck(nnf)){
                 Expression renamed = renameAllBoundVars(nnf);
                 //miniscoping is only senseful if there is at least an EXISTS after creation of nnf
                 Expression beforeSkolemization;
@@ -110,9 +123,15 @@ public class NormalizationUtil {
                     return result;
                 } else {
                     return DisjunctionCreatorVisitor.getInstance().apply(prenex, null);
+                    //Expression dnf =  DisjunctionCreatorVisitor.getInstance().apply(prenex, null);
+                    //Expression simplifiedDNF = simplifyProblem(dnf);
+                    //return simplifiedDNF;
                 }
             } else {
-                return DisjunctionCreatorVisitor.getInstance().apply(nnf, null);
+                return DisjunctionCreatorVisitor.getInstance().apply(simplified, null);
+                //Expression dnf =  DisjunctionCreatorVisitor.getInstance().apply(simplified, null);
+                //Expression simplifiedDNF = simplifyProblem(dnf);
+                //return simplifiedDNF;
             }
         } else {
             throw new UnsupportedOperationException("Creation of NNF failed, no DNF created!");
@@ -181,6 +200,99 @@ public class NormalizationUtil {
             System.out.println("eliminateEquivalence failed!");
         }
         throw new UnsupportedOperationException("Negations were not pushed!");
+    }
+    //TODO: angepasst an jeweiligen Schritt im Algorithmus
+    public static int countPushsIntoLogic(Expression e) {
+        //make sure, that the same transformation as in reality is transformed
+        Expression noLet = eliminateLetExpressions(e);
+        Expression noEquivalence = eliminateEquivalence(noLet);
+        Expression noImplication = eliminateImplication(noEquivalence);
+        Expression noXOR = eliminateXOR(noImplication);
+        Expression noIte = eliminateIfThenElse(noXOR);
+        int[] arr =  NegatingVisitor.getInstance().countNegationSteps(noIte);
+        int countNumBoolNegations = arr[0];
+        return countNumBoolNegations;
+    }
+
+    public static int countAllNegationPushs(Expression e) {
+        //make sure, that the same transformation as in reality is transformed
+        Expression noLet = eliminateLetExpressions(e);
+        Expression noEquivalence = eliminateEquivalence(noLet);
+        Expression noImplication = eliminateImplication(noEquivalence);
+        Expression noXOR = eliminateXOR(noImplication);
+        Expression noIte = eliminateIfThenElse(noXOR);
+        int[] arr =  NegatingVisitor.getInstance().countNegationSteps(noIte);
+        int countAllNegationPushs = arr[1];
+        return countAllNegationPushs;
+    }
+
+
+    public static int countMiniScopingSteps(Expression e) {
+        //make sure, that the same transformation as in reality is transformed
+        Expression nnf = createNNF(e);
+        int countMiniScopingSteps = 0;
+        if(quantifierCheck(nnf)) {
+            Expression renamed = renameAllBoundVars(nnf);
+            //miniscoping is only senseful if there is at least an EXISTS after creation of nnf
+            Expression beforeSkolemization;
+            if (checkForExists(renamed)) {
+                beforeSkolemization = miniScope(renamed);
+                countMiniScopingSteps =  MiniScopingVisitor.getInstance().countMiniScopeSteps(beforeSkolemization);
+            }
+        }
+        return countMiniScopingSteps;
+    }
+
+    public static int countMiniScopingOperationTransformations(Expression e) {
+        //make sure, that the same transformation as in reality is transformed
+        Expression nnf = createNNF(e);
+        int operatorTransformations = 0;
+        if(quantifierCheck(nnf)) {
+            Expression renamed = renameAllBoundVars(nnf);
+            //miniscoping is only senseful if there is at least an EXISTS after creation of nnf
+            Expression beforeSkolemization;
+            if (checkForExists(renamed)) {
+                beforeSkolemization = miniScope(renamed);
+                operatorTransformations =  MiniScopingVisitor.getInstance().countMiniScopeOperatorTransformations(beforeSkolemization);
+            }
+        }
+        return operatorTransformations;
+    }
+
+
+    public static int countCNFSteps(Expression e) {
+        //make sure, that the same transformation as in reality is transformed
+        Expression nnf = createNNF(e);
+        int countCNFSteps =  ConjunctionCreatorVisitor.getInstance().countCNFSteps(nnf);
+        return countCNFSteps;
+    }
+
+    public static int countCNFStepsInMatrix(Expression e) {
+        //make sure, that the same transformation as in reality is transformed
+        Expression nnf = createNNF(e);
+        Expression renamed = renameAllBoundVars(nnf);
+        //miniscoping is only senseful if there is at least an EXISTS after creation of nnf
+        Expression beforeSkolemization;
+        if(checkForExists(renamed)){
+            beforeSkolemization = miniScope(renamed);
+        } else {
+            beforeSkolemization = renamed;
+        }
+        Expression skolemized = skolemize(beforeSkolemization);
+        Expression prenex = prenexing(skolemized);
+        if(prenex instanceof QuantifierExpression){
+            Expression body = ((QuantifierExpression) prenex).getBody();
+            int countCNFSteps =  ConjunctionCreatorVisitor.getInstance().countCNFSteps(body);
+            return countCNFSteps;
+        } else {
+            int countCNFSteps =  ConjunctionCreatorVisitor.getInstance().countCNFSteps(prenex);
+            return countCNFSteps;
+        }
+    }
+
+    public static int countDNFSteps(Expression e) {
+        int countDNFSteps =  DisjunctionCreatorVisitor.getInstance().countDNFSteps(e);
+        return countDNFSteps;
     }
 
     public static <E> Expression<E> eliminateEquivalence(Expression<E> e) {
@@ -252,17 +364,6 @@ public class NormalizationUtil {
         return false;
     }
 
-    /*public static boolean nameClashWithExistingNames(String name, Collection<String> existingNames) {
-        if(existingNames != null) {
-            for (String fName : existingNames) {
-                if(fName.equals(name)){
-                    return true;
-                }
-            }
-        }
-        return false;
-    }*/
-
     public static boolean containsDuplicateNames(Collection<Variable<?>> vars) {
         Collection<Variable> existing = new ArrayList<>();
         if(vars != null) {
@@ -275,28 +376,6 @@ public class NormalizationUtil {
         }
         return false;
     }
-
-    //free Variables are implicitly existentially quantified
-    //could possibly be replaced by a separate ExistentionalClosure
-    /*public static HashMap<String, Expression> skolemizeFreeVars(Collection<Variable<?>> freeVars, int[] id) {
-        HashMap<String, Expression> functionNames = new HashMap<>();
-        if(!freeVars.isEmpty()){
-            for(Variable var : freeVars){
-                String name = var.getName();
-                String nameConstant = "SK.f.constant." + id[0] + "." + name;
-                while(functionNames.containsKey(nameConstant)){
-                    id[0]++;
-                    nameConstant = "SK.f.constant." + id[0] + "." + name;
-                }
-                Type type = var.getType();
-                gov.nasa.jpf.constraints.expressions.functions.Function f = gov.nasa.jpf.constraints.expressions.functions.Function.create(nameConstant, type);
-                Variable v[] = new Variable[f.getArity()];
-                FunctionExpression expr = FunctionExpression.create(f, v);
-                functionNames.put(name, expr);
-            }
-        }
-        return functionNames;
-    }*/
 
     //checking methods
     public static boolean quantifierCheck(Expression<?> expr){
@@ -316,6 +395,32 @@ public class NormalizationUtil {
             Expression<?>[] exprChildren = expr.getChildren();
             for(Expression i : exprChildren){
                 if(quantifierCheck(i)){
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public static boolean checkForForall(Expression<?> expr){
+        if(expr instanceof QuantifierExpression){
+            if(((QuantifierExpression) expr).getQuantifier().equals(Quantifier.FORALL)){
+                return true;
+            }
+        }
+
+        if(expr instanceof LetExpression){
+            Expression flattened = ((LetExpression) expr).flattenLetExpression();
+            Expression<?>[] exprChildren = flattened.getChildren();
+            for(Expression i : exprChildren){
+                if(checkForForall(i)){
+                    return true;
+                }
+            }
+        } else {
+            Expression<?>[] exprChildren = expr.getChildren();
+            for(Expression i : exprChildren){
+                if(checkForForall(i)){
                     return true;
                 }
             }
@@ -348,34 +453,39 @@ public class NormalizationUtil {
         }
         return false;
     }
-    //TODO!
+
+    public static boolean mixedQuantifierCheck(Expression<?> expr){
+        return (checkForExists(expr) && checkForForall(expr));
+    }
+
     public static int countQuantifiers(Expression<?> expr){
+        //return QuantifierCounterVisitor.getInstance().apply(expr);
         int count = 0;
         if(expr instanceof LetExpression){
             Expression flattened = ((LetExpression) expr).flattenLetExpression();
             Expression<?>[] children = flattened.getChildren();
             if(children.length != 0){
-                for(Expression child : expr.getChildren()){
+                for(Expression child : children){
                     if(expr instanceof QuantifierExpression){
                         count++;
                     }
-                    countQuantifiers(child);
+                    count += countQuantifiers(child);
                 }
             }
         } else {
             Expression[] children = expr.getChildren();
             if(children.length != 0){
-                for(Expression child : expr.getChildren()){
+                for(Expression child : children){
                     if(expr instanceof QuantifierExpression){
                         count++;
                     }
-                    countQuantifiers(child);
+                    count += countQuantifiers(child);
                 }
             }
         }
         return count;
     }
-    //TODO: rewrite counting methods; they do not work
+
     public static int countItes(Expression<?> expr){
         int count = 0;
         if(expr instanceof IfThenElse){
@@ -385,15 +495,15 @@ public class NormalizationUtil {
             Expression flattened = ((LetExpression) expr).flattenLetExpression();
             Expression<?>[] children = flattened.getChildren();
             if(children.length != 0){
-                for(Expression child : expr.getChildren()){
-                    countItes(child);
+                for(Expression child : children){
+                    count += countItes(child);
                 }
             }
         } else {
             Expression[] children = expr.getChildren();
             if(children.length != 0){
-                for(Expression child : expr.getChildren()){
-                    countItes(child);
+                for(Expression child : children){
+                    count += countItes(child);
                 }
             }
         }
@@ -411,15 +521,15 @@ public class NormalizationUtil {
             Expression flattened = ((LetExpression) expr).flattenLetExpression();
             Expression<?>[] children = flattened.getChildren();
             if(children.length != 0){
-                for(Expression child : expr.getChildren()){
-                    countEquivalences(child);
+                for(Expression child : children){
+                    count += countEquivalences(child);
                 }
             }
         } else {
             Expression[] children = expr.getChildren();
             if(children.length != 0){
-                for(Expression child : expr.getChildren()){
-                    countEquivalences(child);
+                for(Expression child : children){
+                    count += countEquivalences(child);
                 }
             }
         }
@@ -437,15 +547,15 @@ public class NormalizationUtil {
             Expression flattened = ((LetExpression) expr).flattenLetExpression();
             Expression<?>[] children = flattened.getChildren();
             if(children.length != 0){
-                for(Expression child : expr.getChildren()){
-                    countConjunctions(child);
+                for(Expression child : children){
+                    count += countConjunctions(child);
                 }
             }
         } else {
             Expression[] children = expr.getChildren();
             if(children.length != 0){
-                for(Expression child : expr.getChildren()){
-                    countConjunctions(child);
+                for(Expression child : children){
+                    count += countConjunctions(child);
                 }
             }
         }
@@ -454,19 +564,146 @@ public class NormalizationUtil {
 
     public static int countDisjunctions(Expression<?> expr){
         int count = 0;
+        if(expr instanceof PropositionalCompound){
+            if(((PropositionalCompound) expr).getOperator().equals(LogicalOperator.OR)){
+                count++;
+            }
+        }
         if(expr instanceof LetExpression){
             Expression flattened = ((LetExpression) expr).flattenLetExpression();
             Expression<?>[] children = flattened.getChildren();
             if(children.length != 0){
-                for(Expression child : expr.getChildren()){
-                    countDisjunctions(child);
+                for(Expression child : children){
+                    count += countDisjunctions(child);
                 }
             }
         } else {
             Expression[] children = expr.getChildren();
             if(children.length != 0){
-                for(Expression child : expr.getChildren()){
-                    countDisjunctions(child);
+                for(Expression child : children){
+                    count += countDisjunctions(child);
+                }
+            }
+        }
+        return count;
+    }
+
+    public static int maxDisjunctionLength(Expression<?> expr){
+        int count = 0;
+        int maxLength = 0;
+        if(expr instanceof PropositionalCompound){
+            if(((PropositionalCompound) expr).getOperator().equals(LogicalOperator.OR)){
+                count++;
+            }
+            if(((PropositionalCompound) expr).getOperator().equals(LogicalOperator.AND)){
+                count=0;
+            }
+        }
+        if(expr instanceof LetExpression){
+            Expression flattened = ((LetExpression) expr).flattenLetExpression();
+            Expression<?>[] children = flattened.getChildren();
+            if(children.length != 0){
+                for(Expression child : children){
+                    count += maxDisjunctionLength(child);
+                    if(count > maxLength){
+                        maxLength = count;
+                    }
+                }
+            }
+        } else {
+            Expression[] children = expr.getChildren();
+            if(children.length != 0){
+                for(Expression child : children){
+                    count += maxDisjunctionLength(child);
+                    if(count > maxLength){
+                        maxLength = count;
+                    }
+                }
+            }
+        }
+        return maxLength;
+    }
+
+    public static int maxConjunctionLength(Expression<?> expr){
+        int count = 0;
+        int maxLength = 0;
+        if(expr instanceof PropositionalCompound){
+            if(((PropositionalCompound) expr).getOperator().equals(LogicalOperator.AND)){
+                count++;
+            }
+            if(((PropositionalCompound) expr).getOperator().equals(LogicalOperator.OR)){
+                count=0;
+            }
+        }
+        if(expr instanceof LetExpression){
+            Expression flattened = ((LetExpression) expr).flattenLetExpression();
+            Expression<?>[] children = flattened.getChildren();
+            if(children.length != 0){
+                for(Expression child : children){
+                    count += maxConjunctionLength(child);
+                    if(count > maxLength){
+                        maxLength = count;
+                    }
+                }
+            }
+        } else {
+            Expression[] children = expr.getChildren();
+            if(children.length != 0){
+                for(Expression child : children){
+                    count += maxConjunctionLength(child);
+                    if(count > maxLength){
+                        maxLength = count;
+                    }
+                }
+            }
+        }
+        return maxLength;
+    }
+
+    public static int countNegations(Expression<?> expr){
+        int count = 0;
+        if(expr instanceof Negation){
+            count++;
+        }
+        if(expr instanceof LetExpression){
+            Expression flattened = ((LetExpression) expr).flattenLetExpression();
+            Expression<?>[] children = flattened.getChildren();
+            if(children.length != 0){
+                for(Expression child : children){
+                    count += countNegations(child);
+                }
+            }
+        } else {
+            Expression[] children = expr.getChildren();
+            if(children.length != 0){
+                for(Expression child : children){
+                    count += countNegations(child);
+                }
+            }
+        }
+        return count;
+    }
+
+    public static int countXORs(Expression<?> expr){
+        int count = 0;
+        if(expr instanceof PropositionalCompound){
+            if(((PropositionalCompound) expr).getOperator().equals(LogicalOperator.XOR)){
+                count++;
+            }
+        }
+        if(expr instanceof LetExpression){
+            Expression flattened = ((LetExpression) expr).flattenLetExpression();
+            Expression<?>[] children = flattened.getChildren();
+            if(children.length != 0){
+                for(Expression child : children){
+                    count += countXORs(child);
+                }
+            }
+        } else {
+            Expression[] children = expr.getChildren();
+            if(children.length != 0){
+                for(Expression child : children){
+                    count += countXORs(child);
                 }
             }
         }

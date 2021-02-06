@@ -101,14 +101,13 @@ public class RenamingBoundVarVisitor extends
     return super.defaultVisit(expression, data);
   }
 
-  /*@Override
-  public <E> Expression<?> visit(IfThenElse<E> n, HashMap<String, String> data) {
-    Expression newIfCond = visit(n.getIf(), data);
-    Expression newThenExpr = visit(n.getThen(), data);
-    Expression newElseExpr = visit(n.getElse(), data);
+  @Override
+  public Expression<?> visit(LetExpression expr, HashMap<String, String> data) {
 
-    return IfThenElse.create(newIfCond, newThenExpr, newElseExpr);
-  }*/
+    Expression flattened = expr.flattenLetExpression();
+    Expression result = (Expression) visit(flattened, data);
+    return result;
+  }
 
   public <T> Expression<T> apply(Expression<T> expr, HashMap<String, String> data) {
     freeVars = ExpressionUtil.freeVariables(expr);

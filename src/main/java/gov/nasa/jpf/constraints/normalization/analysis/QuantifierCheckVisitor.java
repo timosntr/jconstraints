@@ -21,7 +21,7 @@
  * <p>Modifications and new contributions are Copyright by TU Dortmund 2020, Malte Mues under Apache
  * 2.0 in alignment with the original repository license.
  */
-package gov.nasa.jpf.constraints.normalization;
+package gov.nasa.jpf.constraints.normalization.analysis;
 
 import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.expressions.AbstractExpressionVisitor;

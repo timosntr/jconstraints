@@ -52,11 +52,10 @@ public class RenamingBoundVarTest {
     @Test(groups = {"normalization"})
     //works
     public void simpleRenamingTest() {
-        HashMap<String, String> data = new HashMap<>();
         List<Variable<?>> bound = new ArrayList<>();
         bound.add(x);
         Expression q = QuantifierExpression.create(Quantifier.FORALL, bound, ExpressionUtil.and(e1,e2));
-        Expression<Boolean> renamed = (Expression<Boolean>) q.accept(RenamingBoundVarVisitor.getInstance(), data);
+        Expression<Boolean> renamed = NormalizationUtil.renameAllBoundVars(q);
         System.out.println(q);
         System.out.println(renamed);
     }
@@ -64,14 +63,13 @@ public class RenamingBoundVarTest {
     @Test(groups = {"normalization"})
     //works
     public void nestedRenamingTest1() {
-        HashMap<String, String> data = new HashMap<>();
         List<Variable<?>> freeVars = new ArrayList<>();
         List<Variable<?>> bound = new ArrayList<>();
         bound.add(x);
         Expression q = ExpressionUtil.or(e1,
                 QuantifierExpression.create(Quantifier.FORALL, bound, e1));
 
-        Expression<Boolean> renamed = (Expression<Boolean>) q.accept(RenamingBoundVarVisitor.getInstance(), data);
+        Expression<Boolean> renamed = NormalizationUtil.renameAllBoundVars(q);
 
         q.collectFreeVariables(freeVars);
         System.out.println("FreeVars in q: " + freeVars);
@@ -85,7 +83,6 @@ public class RenamingBoundVarTest {
     @Test(groups = {"normalization"})
     //works
     public void nestedRenamingTest2() {
-        HashMap<String, String> data = new HashMap<>();
         List<Variable<?>> bound = new ArrayList<>();
         bound.add(x);
         Expression q = ExpressionUtil.or(e1, PropositionalCompound.create(
@@ -93,7 +90,7 @@ public class RenamingBoundVarTest {
                 LogicalOperator.AND,
                 QuantifierExpression.create(Quantifier.EXISTS, bound, e1)));
 
-        Expression<Boolean> renamed = (Expression<Boolean>) q.accept(RenamingBoundVarVisitor.getInstance(), data);
+        Expression<Boolean> renamed = NormalizationUtil.renameAllBoundVars(q);
         System.out.println(q);
         System.out.println(renamed);
     }
@@ -101,14 +98,13 @@ public class RenamingBoundVarTest {
     @Test(groups = {"normalization"})
     //works
     public void nestedRenamingTest3() {
-        HashMap<String, String> data = new HashMap<>();
         List<Variable<?>> bound = new ArrayList<>();
         bound.add(x);
         Expression q = ExpressionUtil.or(ExpressionUtil.and(
                 QuantifierExpression.create(Quantifier.FORALL, bound, e1)),
                 QuantifierExpression.create(Quantifier.EXISTS, bound, e1), e1);
 
-        Expression<Boolean> renamed = (Expression<Boolean>) q.accept(RenamingBoundVarVisitor.getInstance(), data);
+        Expression<Boolean> renamed = NormalizationUtil.renameAllBoundVars(q);
         System.out.println(q);
         System.out.println(renamed);
     }
@@ -116,14 +112,13 @@ public class RenamingBoundVarTest {
     @Test(groups = {"normalization"})
     //works
     public void freeVarsTest() {
-        HashMap<String, String> data = new HashMap<>();
         List<Variable<?>> bound = new ArrayList<>();
         bound.add(x);
         Expression q = ExpressionUtil.or(e1, ExpressionUtil.and(
                 QuantifierExpression.create(Quantifier.FORALL, bound, e1)),
                 ExpressionUtil.or(e2mod, e1));
 
-        Expression<Boolean> renamed = (Expression<Boolean>) q.accept(RenamingBoundVarVisitor.getInstance(), data);
+        Expression<Boolean> renamed = NormalizationUtil.renameAllBoundVars(q);
         System.out.println(q);
         System.out.println(renamed);
     }
@@ -131,7 +126,6 @@ public class RenamingBoundVarTest {
     @Test(groups = {"normalization"})
     //works
     public void nestedQuantifierTest() {
-        HashMap<String, String> data = new HashMap<>();
         List<Variable<?>> bound1 = new ArrayList<>();
         bound1.add(x);
         List<Variable<?>> bound2 = new ArrayList<>();
@@ -140,7 +134,7 @@ public class RenamingBoundVarTest {
 
         Expression<Boolean> allBound = QuantifierExpression.create(Quantifier.EXISTS, bound1,
                 ExpressionUtil.or(e1, QuantifierExpression.create(Quantifier.FORALL, bound2, ExpressionUtil.and(e1, e2))));
-        Expression<Boolean> renamed = (Expression<Boolean>) allBound.accept(RenamingBoundVarVisitor.getInstance(), data);
+        Expression<Boolean> renamed = NormalizationUtil.renameAllBoundVars(allBound);
 
         System.out.println(allBound);
         System.out.println(renamed);
@@ -149,7 +143,6 @@ public class RenamingBoundVarTest {
     @Test(groups = {"normalization"})
     //works
     public void freeVarInOtherPathTest() {
-        HashMap<String, String> data = new HashMap<>();
         List<Variable<?>> bound1 = new ArrayList<>();
         bound1.add(x);
         List<Variable<?>> bound2 = new ArrayList<>();
@@ -158,7 +151,7 @@ public class RenamingBoundVarTest {
 
         Expression<Boolean> allBound = ExpressionUtil.and(e2mod, QuantifierExpression.create(Quantifier.EXISTS, bound1,
                 ExpressionUtil.or(e1, QuantifierExpression.create(Quantifier.FORALL, bound2, ExpressionUtil.and(e1, e2)))));
-        Expression<Boolean> renamed = (Expression<Boolean>) allBound.accept(RenamingBoundVarVisitor.getInstance(), data);
+        Expression<Boolean> renamed = NormalizationUtil.renameAllBoundVars(allBound);
 
         System.out.println(allBound);
         System.out.println(renamed);
@@ -167,7 +160,6 @@ public class RenamingBoundVarTest {
     @Test(groups = {"normalization"})
     //works
     public void renamingProblemTest() {
-        HashMap<String, String> data = new HashMap<>();
         List<Variable<?>> bound1 = new ArrayList<>();
         bound1.add(x);
         bound1.add(y);
@@ -176,7 +168,7 @@ public class RenamingBoundVarTest {
 
         Expression<Boolean> allBound = (QuantifierExpression.create(Quantifier.EXISTS, bound1,
                 ExpressionUtil.or(e1, QuantifierExpression.create(Quantifier.FORALL, bound2, ExpressionUtil.and(e1, e2)))));
-        Expression<Boolean> renamed = (Expression<Boolean>) allBound.accept(RenamingBoundVarVisitor.getInstance(), data);
+        Expression<Boolean> renamed = NormalizationUtil.renameAllBoundVars(allBound);
 
         System.out.println(allBound);
         System.out.println(renamed);
@@ -185,7 +177,6 @@ public class RenamingBoundVarTest {
     @Test(groups = {"normalization"})
     //works
     public void renamingProblemTest2() {
-        HashMap<String, String> data = new HashMap<>();
         List<Variable<?>> bound1 = new ArrayList<>();
         bound1.add(x);
         bound1.add(y);
@@ -197,7 +188,7 @@ public class RenamingBoundVarTest {
         Expression<Boolean> allBound = (QuantifierExpression.create(Quantifier.EXISTS, bound1,
                 ExpressionUtil.or(e1, QuantifierExpression.create(Quantifier.FORALL, bound2,
                         ExpressionUtil.and(e1, ExpressionUtil.or(QuantifierExpression.create(Quantifier.FORALL, bound3, e2), e2))))));
-        Expression<Boolean> renamed = (Expression<Boolean>) allBound.accept(RenamingBoundVarVisitor.getInstance(), data);
+        Expression<Boolean> renamed = NormalizationUtil.renameAllBoundVars(allBound);
 
         System.out.println(allBound);
         System.out.println(renamed);
@@ -206,13 +197,12 @@ public class RenamingBoundVarTest {
     @Test(groups = {"normalization"})
     //works
     public void renamingLetText() {
-        HashMap<String, String> data = new HashMap<>();
         List<Variable<?>> bound1 = new ArrayList<>();
         bound1.add(x);
         bound1.add(y);
 
         Expression<Boolean> allBound = QuantifierExpression.create(Quantifier.EXISTS, bound1, ExpressionUtil.or(e1, LetExpression.create(z, e3, e4)));
-        Expression<Boolean> renamed = (Expression<Boolean>) allBound.accept(RenamingBoundVarVisitor.getInstance(), data);
+        Expression<Boolean> renamed = NormalizationUtil.renameAllBoundVars(allBound);
 
         System.out.println(allBound);
         System.out.println(renamed);

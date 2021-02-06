@@ -49,6 +49,9 @@ public class NegatingVisitor extends
         return INSTANCE;
     }
 
+    int countLogicalNegations = 0;
+    int countAllNegationPushs = 0;
+
     @Override
     public Expression<?> visit(NumericBooleanExpression expr, Boolean shouldNegate){
 
@@ -56,6 +59,8 @@ public class NegatingVisitor extends
             Expression<?> left = expr.getLeft();
             Expression<?> right = expr.getRight();
             NumericComparator comparator = expr.getComparator();
+            countLogicalNegations++;
+            countAllNegationPushs++;
             return NumericBooleanExpression.create(left, comparator.not(), right);
         }
 
@@ -94,7 +99,8 @@ public class NegatingVisitor extends
                     newRight = (Expression<Boolean>) visit(right, false);
                 }
             }
-
+            countLogicalNegations++;
+            countAllNegationPushs++;
             return PropositionalCompound.create(newLeft, negOperator, newRight);
 
         } else {
@@ -109,11 +115,11 @@ public class NegatingVisitor extends
     public Expression<?> visit(Negation expr, Boolean shouldNegate){
 
         if(shouldNegate){
+            countAllNegationPushs++;
             //negation of a negation
             if(expr.getType().equals(BuiltinTypes.BOOL)){
                 return visit(expr.getNegated(), false);
             } else {
-                //Todo: not sure about this part;
                 // should be unnecessary as a Negation should always be boolean typed
                 return expr;
             }
@@ -121,8 +127,6 @@ public class NegatingVisitor extends
             if (expr.getType().equals(BuiltinTypes.BOOL)) {
                 return visit(expr.getNegated(), true);
             } else {
-                //Todo: not sure about this part;
-                // should be unnecessary as a Negation should always be boolean typed
                 return expr;
             }
         }
@@ -133,6 +137,7 @@ public class NegatingVisitor extends
 
         if(shouldNegate){
             if (var.getType().equals(BuiltinTypes.BOOL)) {
+                countAllNegationPushs++;
                 Negation negated = Negation.create(var);
                 return negated;
             }
@@ -146,6 +151,7 @@ public class NegatingVisitor extends
         Expression<Boolean> body = quantified.getBody();
 
         if(shouldNegate){
+            countAllNegationPushs++;
             QuantifierExpression qExpr = QuantifierExpression.create(q.negate(), vars, (Expression<Boolean>) visit(Negation.create(body), false));
             return qExpr;
         }
@@ -157,6 +163,7 @@ public class NegatingVisitor extends
     public Expression<?> visit(StringBooleanExpression expr, Boolean shouldNegate) {
 
         if(shouldNegate) {
+            countAllNegationPushs++;
             StringBooleanOperator operator = expr.getOperator();
             Expression<?> left = expr.getLeft();
             Expression<?> right = expr.getRight();
@@ -178,11 +185,7 @@ public class NegatingVisitor extends
         Expression thenExpr = expr.getThen();
         Expression elseExpr = expr.getElse();
         if(shouldNegate){
-            /*if(thenExpr.getType().equals(BuiltinTypes.BOOL) && elseExpr.getType().equals(BuiltinTypes.BOOL)){
-                Expression newThen = visit(Negation.create(thenExpr), false);
-                Expression newElse = visit(Negation.create(elseExpr), false);
-                return IfThenElse.create(expr.getIf(), newThen, newElse);
-            }*/
+            countAllNegationPushs++;
             if(thenExpr.getType().equals(BuiltinTypes.BOOL) && elseExpr.getType().equals(BuiltinTypes.BOOL)){
                 Expression firstPart = PropositionalCompound.create(Negation.create(expr.getIf()), LogicalOperator.OR, thenExpr);
                 Expression secondPart = PropositionalCompound.create(expr.getIf(), LogicalOperator.OR, elseExpr);
@@ -221,6 +224,7 @@ public class NegatingVisitor extends
 
         //FunctionExpressions are not further negated
         if(shouldNegate){
+            countAllNegationPushs++;
             return Negation.create((Expression<Boolean>) expr);
         }
         return expr;
@@ -229,6 +233,7 @@ public class NegatingVisitor extends
     @Override
     public Expression<?> visit(RegExBooleanExpression expr, Boolean shouldNegate) {
         if(shouldNegate){
+            countAllNegationPushs++;
             return Negation.create(expr);
         }
         return expr;
@@ -238,6 +243,7 @@ public class NegatingVisitor extends
     public <E> Expression<?> visit(Constant<E> c, Boolean shouldNegate) {
         if(shouldNegate){
             if (c.getType().equals(BuiltinTypes.BOOL)) {
+                countAllNegationPushs++;
                 return Negation.create((Expression<Boolean>) c);
             }
         }
@@ -248,6 +254,7 @@ public class NegatingVisitor extends
     public <E> Expression<?> visit(UnaryMinus<E> expr, Boolean shouldNegate) {
         if(shouldNegate){
             if(expr.getType().equals(BuiltinTypes.BOOL)){
+                countAllNegationPushs++;
                 return expr.getNegated();
             }
         }
@@ -257,6 +264,7 @@ public class NegatingVisitor extends
     @Override
     public <E> Expression<?> visit(BitvectorExpression<E> expr, Boolean shouldNegate) {
         if(shouldNegate){
+            countAllNegationPushs++;
             Expression left = expr.getLeft();
             Expression right = expr.getRight();
             BitvectorOperator operator = expr.getOperator();
@@ -266,7 +274,8 @@ public class NegatingVisitor extends
             } else if(operator.equals(BitvectorOperator.OR)){
                 return BitvectorExpression.create(left, BitvectorOperator.AND, right);
             }
-            return Negation.create((Expression<Boolean>) expr);
+            //return Negation.create((Expression<Boolean>) expr);
+            return expr;
         }
         return expr;
     }
@@ -276,6 +285,7 @@ public class NegatingVisitor extends
     public Expression<?> visit(LetExpression expr, Boolean shouldNegate) {
         Expression flattened = expr.flattenLetExpression();
         if(shouldNegate){
+            countAllNegationPushs++;
             if(flattened.getType().equals(BuiltinTypes.BOOL)){
                 return visit(Negation.create(flattened), false);
             }
@@ -285,7 +295,6 @@ public class NegatingVisitor extends
 
     @Override
     public <E> Expression<?> visit(NumericCompound<E> n, Boolean data) {
-        //ToDo: test if correct, should safe from IfThenElse problems
         return n;
     }
 
@@ -299,5 +308,13 @@ public class NegatingVisitor extends
 
     public <T> Expression<T> apply(Expression<T> expr, Boolean shouldNegate) {
         return visit(expr, shouldNegate).requireAs(expr.getType());
+    }
+
+    public int[] countNegationSteps(Expression expr){
+        apply(expr, false);
+        int[] counter = new int[2];
+        counter[0] = countLogicalNegations;
+        counter[1] = countAllNegationPushs;
+        return counter;
     }
 }

@@ -51,7 +51,6 @@ public class PrenexFormTest {
 
     Expression e1 = NumericBooleanExpression.create(x, NumericComparator.LT, c1);
     Expression e2 = NumericBooleanExpression.create(y, NumericComparator.LE, c2);
-    Expression e3 = NumericBooleanExpression.create(x, NumericComparator.GE, c1);
     Expression e4 = NumericBooleanExpression.create(y, NumericComparator.EQ, c2);
     Expression e5 = NumericBooleanExpression.create(x, NumericComparator.GE, y);
     Expression e6 = PropositionalCompound.create(b1, LogicalOperator.OR, e1);
@@ -59,15 +58,9 @@ public class PrenexFormTest {
 
     Expression con1 = PropositionalCompound.create(e1, LogicalOperator.AND, e4);
 
-    Expression disjunction = PropositionalCompound.create(
-            PropositionalCompound.create(e3, LogicalOperator.AND, e4),
-            LogicalOperator.OR,
-            b1);
-
     @Test(groups = {"normalization"})
     //only forall
     public void forallTest(){
-        List<Variable<?>> args = new ArrayList<>();
         List<Variable<?>> bound = new ArrayList<>();
         bound.add(x);
         Expression quantified = QuantifierExpression.create(Quantifier.FORALL, bound, con1);
@@ -82,10 +75,7 @@ public class PrenexFormTest {
 
     @Test(groups = {"normalization"})
     //only forall
-    //ToDo: if vars in e8 existentially quantified, then correct,
-    // if not -> don't skolemiza free vars which are outside the scope of a quantifier
     public void forallTest2(){
-        List<Variable<?>> args = new ArrayList<>();
         List<Variable<?>> bound = new ArrayList<>();
         bound.add(x);
         Expression quantified = ExpressionUtil.or(e8,
@@ -102,7 +92,6 @@ public class PrenexFormTest {
     @Test(groups = {"normalization"})
     //only outer exists, no forall
     public void outerExistsTest1(){
-        List<Variable<?>> args = new ArrayList<>();
         List<Variable<?>> bound1 = new ArrayList<Variable<?>>();
         bound1.add(x);
         List<Variable<?>> bound2 = new ArrayList<Variable<?>>();
@@ -111,7 +100,6 @@ public class PrenexFormTest {
         Function f = Function.create("SK.constant.0.x", BuiltinTypes.SINT32);
         Variable v[] = new Variable[f.getArity()];
         FunctionExpression expr = FunctionExpression.create(f, v);
-        Expression expected = NumericBooleanExpression.create(expr, NumericComparator.LT, c1);
 
         Expression<Boolean> skolemized = NormalizationUtil.skolemize(quantified);
         Expression<Boolean> prenex = NormalizationUtil.prenexing(skolemized);
@@ -123,16 +111,11 @@ public class PrenexFormTest {
     @Test(groups = {"normalization"})
     //only outer exists, inner forall
     public void outerExistsTest2(){
-        List<Variable<?>> args = new ArrayList<>();
         List<Variable<?>> bound1 = new ArrayList<Variable<?>>();
         bound1.add(x);
         List<Variable<?>> bound2 = new ArrayList<Variable<?>>();
         bound2.add(y);
         Expression quantified = QuantifierExpression.create(Quantifier.EXISTS, bound1, QuantifierExpression.create(Quantifier.FORALL, bound2, con1));
-        Function f = Function.create("SK.constant.0.x", BuiltinTypes.SINT32);
-        Variable v[] = new Variable[f.getArity()];
-        FunctionExpression expr = FunctionExpression.create(f, v);
-        Expression expected = QuantifierExpression.create(Quantifier.FORALL, bound2, ExpressionUtil.and(NumericBooleanExpression.create(expr, NumericComparator.LT, c1),e4));
 
         Expression<Boolean> skolemized = NormalizationUtil.skolemize(quantified);
         Expression<Boolean> prenex = NormalizationUtil.prenexing(skolemized);
@@ -152,15 +135,6 @@ public class PrenexFormTest {
         Expression quantified = QuantifierExpression.create(Quantifier.FORALL, bound1,
                         QuantifierExpression.create(Quantifier.EXISTS, bound2, e5));
 
-        Function f = Function.create("SK.function.0.y", BuiltinTypes.SINT32, BuiltinTypes.SINT32);
-        Variable v[] = new Variable[f.getArity()];
-        for (int i=0; i<v.length; i++) {
-            v[i] = Variable.create(BuiltinTypes.SINT32, "x");
-        }
-        FunctionExpression expr = FunctionExpression.create(f, v);
-        Expression expected = QuantifierExpression.create(Quantifier.FORALL, bound1,
-                NumericBooleanExpression.create(x, NumericComparator.GE, expr));
-        //TODO: miniScope creates overflow?
         Expression<Boolean> renamed = NormalizationUtil.renameAllBoundVars(quantified);
         Expression<Boolean> mini = NormalizationUtil.miniScope(renamed);
         Expression<Boolean> skolemized = (Expression<Boolean>) mini.accept(SkolemizationVisitor.getInstance(), args);
@@ -177,7 +151,6 @@ public class PrenexFormTest {
     @Test(groups = {"normalization"})
     //multiple exists
     public void multiplePathsTest1(){
-        List<Variable<?>> args = new ArrayList<>();
         List<Variable<?>> bound1 = new ArrayList<>();
         bound1.add(x);
         List<Variable<?>> bound2 = new ArrayList<>();
@@ -201,7 +174,6 @@ public class PrenexFormTest {
     @Test(groups = {"normalization"})
     //multiple exists
     public void multiplePathsTest2(){
-        List<Variable<?>> args = new ArrayList<>();
         List<Variable<?>> bound1 = new ArrayList<>();
         bound1.add(x);
         List<Variable<?>> bound3 = new ArrayList<>();
@@ -222,7 +194,6 @@ public class PrenexFormTest {
     //multiple exists
     //example, why miniscoping is helpful!
     public void multipleExistsTest(){
-        List<Variable<?>> args = new ArrayList<>();
         List<Variable<?>> bound1 = new ArrayList<>();
         bound1.add(x);
         List<Variable<?>> bound2 = new ArrayList<>();
@@ -242,7 +213,7 @@ public class PrenexFormTest {
                         ExpressionUtil.and(
                                 QuantifierExpression.create(Quantifier.FORALL, bound1, e8),
                                 b2)));
-        Expression<Boolean> mini = (Expression<Boolean>) quantified.accept(MiniScopingVisitor.getInstance(), null);
+        Expression<Boolean> mini = NormalizationUtil.miniScope(quantified);
         Expression<Boolean> skolemized = NormalizationUtil.skolemize(mini);
         Expression<Boolean> prenex = NormalizationUtil.prenexing(skolemized);
 
@@ -254,9 +225,7 @@ public class PrenexFormTest {
 
     @Test(groups = {"normalization"})
     public void nameClashTest(){
-        HashMap<String, String> data = new HashMap<>();
         Collection<Variable<?>> test = new ArrayList<>();
-        List<Variable<?>> args = new ArrayList<>();
         List<Variable<?>> bound1 = new ArrayList<>();
         bound1.add(x);
         List<Variable<?>> bound2 = new ArrayList<>();
@@ -267,8 +236,8 @@ public class PrenexFormTest {
         Expression quantified = ExpressionUtil.and(
                 QuantifierExpression.create(Quantifier.EXISTS, bound1,
                         ExpressionUtil.and(e7, QuantifierExpression.create(Quantifier.FORALL, bound2, e2))));
-        Expression<Boolean> renamed = (Expression<Boolean>) quantified.accept(RenamingBoundVarVisitor.getInstance(), data);
-        Expression<Boolean> skolemized = NormalizationUtil.skolemize(quantified);
+        Expression<Boolean> renamed = NormalizationUtil.renameAllBoundVars(quantified);
+        Expression<Boolean> skolemized = NormalizationUtil.skolemize(renamed);
         Expression<Boolean> prenex = NormalizationUtil.prenexing(skolemized);
 
         quantified.collectFreeVariables(test);

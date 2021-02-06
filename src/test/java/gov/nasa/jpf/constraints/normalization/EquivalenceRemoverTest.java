@@ -66,14 +66,14 @@ public class EquivalenceRemoverTest {
 
     @Test(groups = {"normalization"})
     public void equivalenceRemoverTest() {
-        Expression<Boolean> result = (Expression<Boolean>) containsEquiv.accept(EquivalenceRemoverVisitor.getInstance(), null);
+        Expression<Boolean> result = NormalizationUtil.eliminateEquivalence(containsEquiv);
 
         assertEquals(result, equivFree);
     }
 
     @Test(groups = {"normalization"})
     public void nestedEquivalenceRemoverTest() {
-        Expression<Boolean> result = (Expression<Boolean>) containsEquiv2.accept(EquivalenceRemoverVisitor.getInstance(), null);
+        Expression<Boolean> result = NormalizationUtil.eliminateEquivalence(containsEquiv2);
 
         assertEquals(result, equivFree2);
     }
