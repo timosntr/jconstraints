@@ -27,11 +27,8 @@ import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.expressions.functions.FunctionExpression;
-import gov.nasa.jpf.constraints.normalization.analysis.IfThenElseCounterVisitor;
-import gov.nasa.jpf.constraints.normalization.analysis.QuantifierCounterVisitor;
 import gov.nasa.jpf.constraints.normalization.experimentalVisitors.ModifiedIfThenElseRemoverVisitor;
 import gov.nasa.jpf.constraints.normalization.experimentalVisitors.ModifiedNegatingVisitor;
-import gov.nasa.jpf.constraints.types.Type;
 
 import java.util.*;
 
