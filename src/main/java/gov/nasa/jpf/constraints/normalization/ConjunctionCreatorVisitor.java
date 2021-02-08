@@ -41,7 +41,7 @@ public class ConjunctionCreatorVisitor extends
         return INSTANCE;
     }
 
-    int countCNFSteps;
+    //int countCNFSteps;
 
     @Override
     public Expression<?> visit(PropositionalCompound expr, Void data) {
@@ -67,7 +67,7 @@ public class ConjunctionCreatorVisitor extends
 
             if (operatorIsOR && leftOpIsAND && rightOpIsAND) {
                 //case: (A AND B) OR (C AND D)
-                countCNFSteps++;
+                //countCNFSteps++;
                 Expression result = PropositionalCompound.create(
                         PropositionalCompound.create(
                                 PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightLeft),
@@ -82,7 +82,7 @@ public class ConjunctionCreatorVisitor extends
 
             } else if (operatorIsOR && leftOpIsAND && rightOpIsOR) {
                 //case: (A AND B) OR (C OR D)
-                countCNFSteps++;
+                //countCNFSteps++;
                 Expression result = PropositionalCompound.create(
                         PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightChild),
                         LogicalOperator.AND,
@@ -91,7 +91,7 @@ public class ConjunctionCreatorVisitor extends
 
             } else if (operatorIsOR && leftOpIsOR && rightOpIsAND) {
                 //case: (A OR B) OR (C AND D)
-                countCNFSteps++;
+                //countCNFSteps++;
                 Expression result = PropositionalCompound.create(
                         PropositionalCompound.create(leftChild, LogicalOperator.OR, rightLeft),
                         LogicalOperator.AND,
@@ -115,7 +115,7 @@ public class ConjunctionCreatorVisitor extends
 
             if (operatorIsOR && leftOpIsAND) {
                 //case: (A AND B) OR (C)
-                countCNFSteps++;
+                //countCNFSteps++;
                 Expression result = PropositionalCompound.create(
                         PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightChild),
                         LogicalOperator.AND,
@@ -140,7 +140,7 @@ public class ConjunctionCreatorVisitor extends
 
             if (operatorIsOR && rightOpIsAND) {
                 //case: (A) OR (C AND D)
-                countCNFSteps++;
+                //countCNFSteps++;
                 Expression result = PropositionalCompound.create(
                         PropositionalCompound.create(leftChild, LogicalOperator.OR, rightLeft),
                         LogicalOperator.AND,
@@ -270,8 +270,8 @@ public class ConjunctionCreatorVisitor extends
         return visit(expr, data).requireAs(expr.getType());
     }
 
-    public int countCNFSteps(Expression expr){
+    /*public int countCNFSteps(Expression expr){
         apply(expr, null);
         return countCNFSteps;
-    }
+    }*/
 }

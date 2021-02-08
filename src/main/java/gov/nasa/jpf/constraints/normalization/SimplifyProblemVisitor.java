@@ -83,7 +83,7 @@ public class SimplifyProblemVisitor extends
                 //or rightChild
                 return leftChild;
             }
-            if(operator.equals(lastOperator)){
+            /*if(operator.equals(lastOperator)){
                 if(!data.isEmpty()) {
                     for (Object e : data) {
                         if (e.equals(n.getLeft())) {
@@ -113,7 +113,7 @@ public class SimplifyProblemVisitor extends
                 data.add(n.getLeft());
                 data.add(n.getRight());
                 lastOperator = operator;
-            }
+            }*/
 
             if(leftChild instanceof Negation){
                 if(rightChild.equals(((Negation) leftChild).getNegated())){
@@ -151,7 +151,7 @@ public class SimplifyProblemVisitor extends
                 //or rightChild
                 return leftChild;
             }
-            if(operator.equals(lastOperator)){
+            /*if(operator.equals(lastOperator)){
                 if(!data.isEmpty()) {
                     for (Object e : data) {
                         if (e.equals(n.getLeft())) {
@@ -181,7 +181,7 @@ public class SimplifyProblemVisitor extends
                 data.add(n.getLeft());
                 data.add(n.getRight());
                 lastOperator = operator;
-            }
+            }*/
 
             if(leftChild instanceof Negation) {
                 if(rightChild.equals(((Negation) leftChild).getNegated())) {

@@ -27,6 +27,7 @@ import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.expressions.functions.FunctionExpression;
+import gov.nasa.jpf.constraints.normalization.analysis.IfThenElseCounterVisitor;
 import gov.nasa.jpf.constraints.normalization.analysis.QuantifierCounterVisitor;
 import gov.nasa.jpf.constraints.normalization.experimentalVisitors.ModifiedIfThenElseRemoverVisitor;
 import gov.nasa.jpf.constraints.normalization.experimentalVisitors.ModifiedNegatingVisitor;
@@ -36,12 +37,11 @@ import java.util.*;
 
 public class NormalizationUtil {
 
-    //ToDo: further normalizing methods (order, dependencies...)
     //ToDo: normalize (mit quantifiercheck und dann entsprechender aufruf des passenden algorithmus?)
-
+    //todo: simplify ist noch nicht ganz funktionstüchtig!
     public static <E> Expression<E> createCNFforMatrix(Expression<E> e) {
-        Expression simplified = simplifyProblem(e);
-        Expression nnf = createNNF(simplified);
+        //Expression simplified = simplifyProblem(e);
+        Expression nnf = createNNF(e);
         if (!nnf.equals(null)) {
             Expression renamed = renameAllBoundVars(nnf);
             //miniscoping is only senseful if there is at least an EXISTS after creation of nnf
@@ -89,9 +89,9 @@ public class NormalizationUtil {
     }
 
     public static <E> Expression<E> simplifyProblem(Expression<E> e) {
-        Expression noLet = eliminateLetExpressions(e);
+        //Expression noLet = eliminateLetExpressions(e);
         LinkedList<Expression<?>> data = new LinkedList<>();
-        return SimplifyProblemVisitor.getInstance().apply(noLet, data);
+        return SimplifyProblemVisitor.getInstance().apply(e, data);
     }
 
     public static <E> Expression<E> createCNFNoQuantorHandling(Expression<E> e) {
@@ -100,8 +100,8 @@ public class NormalizationUtil {
 
     //nnf has to be created beforehand
     public static <E> Expression<E> createDNF(Expression<E> e) {
-        Expression simplified = simplifyProblem(e);
-        Expression nnf = createNNF(simplified);
+        //Expression simplified = simplifyProblem(e);
+        Expression nnf = createNNF(e);
         if (!nnf.equals(null)) {
             if(quantifierCheck(nnf)){
                 Expression renamed = renameAllBoundVars(nnf);
@@ -128,7 +128,7 @@ public class NormalizationUtil {
                     //return simplifiedDNF;
                 }
             } else {
-                return DisjunctionCreatorVisitor.getInstance().apply(simplified, null);
+                return DisjunctionCreatorVisitor.getInstance().apply(nnf, null);
                 //Expression dnf =  DisjunctionCreatorVisitor.getInstance().apply(simplified, null);
                 //Expression simplifiedDNF = simplifyProblem(dnf);
                 //return simplifiedDNF;
@@ -260,14 +260,14 @@ public class NormalizationUtil {
     }
 
 
-    public static int countCNFSteps(Expression e) {
+    /*public static int countCNFSteps(Expression e) {
         //make sure, that the same transformation as in reality is transformed
         Expression nnf = createNNF(e);
         int countCNFSteps =  ConjunctionCreatorVisitor.getInstance().countCNFSteps(nnf);
         return countCNFSteps;
-    }
+    }*/
 
-    public static int countCNFStepsInMatrix(Expression e) {
+    /*public static int countCNFStepsInMatrix(Expression e) {
         //make sure, that the same transformation as in reality is transformed
         Expression nnf = createNNF(e);
         Expression renamed = renameAllBoundVars(nnf);
@@ -288,10 +288,11 @@ public class NormalizationUtil {
             int countCNFSteps =  ConjunctionCreatorVisitor.getInstance().countCNFSteps(prenex);
             return countCNFSteps;
         }
-    }
+    }*/
 
     public static int countDNFSteps(Expression e) {
-        int countDNFSteps =  DisjunctionCreatorVisitor.getInstance().countDNFSteps(e);
+        Expression nnf = createNNF(e);
+        int countDNFSteps =  DisjunctionCreatorVisitor.getInstance().countDNFSteps(nnf);
         return countDNFSteps;
     }
 
@@ -487,18 +488,17 @@ public class NormalizationUtil {
     }
 
     public static int countItes(Expression<?> expr){
+        //return IfThenElseCounterVisitor.getInstance().apply(expr);
         int count = 0;
         if(expr instanceof IfThenElse){
             count++;
         }
-        if(expr instanceof LetExpression){
+        if(expr instanceof LetExpression) {
             Expression flattened = ((LetExpression) expr).flattenLetExpression();
-            Expression<?>[] children = flattened.getChildren();
-            if(children.length != 0){
-                for(Expression child : children){
-                    count += countItes(child);
-                }
-            }
+            count += countItes(flattened);
+        } else if(expr instanceof QuantifierExpression){
+            Expression body = ((QuantifierExpression) expr).getBody();
+                count += countItes(body);
         } else {
             Expression[] children = expr.getChildren();
             if(children.length != 0){
@@ -711,10 +711,12 @@ public class NormalizationUtil {
     }
 
     public static boolean equivalenceCheck(Expression<?> expr){
+        boolean check = false;
         if(expr instanceof PropositionalCompound){
             LogicalOperator operator = ((PropositionalCompound) expr).getOperator();
             if(operator.equals(LogicalOperator.EQUIV)){
-                return true;
+                check = true;
+                return check;
             }
         }
         if(expr instanceof LetExpression){
@@ -722,55 +724,64 @@ public class NormalizationUtil {
             Expression<?>[] exprChildren = flattened.getChildren();
             for(Expression i : exprChildren){
                 if(equivalenceCheck(i)){
-                    return true;
+                    check = true;
+                    return check;
                 }
             }
         } else {
             Expression<?>[] exprChildren = expr.getChildren();
             for(Expression i : exprChildren){
                 if(equivalenceCheck(i)){
-                    return true;
+                    check = true;
+                    return check;
                 }
             }
         }
-        return false;
+        return check;
     }
 
     public static boolean ifThenElseCheck(Expression<?> expr){
+        boolean check = false;
         if(expr instanceof IfThenElse){
-            return true;
+            check = true;
+            return check;
         }
         if(expr instanceof LetExpression){
             Expression flattened = ((LetExpression) expr).flattenLetExpression();
             Expression<?>[] exprChildren = flattened.getChildren();
             for(Expression i : exprChildren){
                 if(ifThenElseCheck(i)){
-                    return true;
+                    check = true;
+                    return check;
                 }
             }
         } else {
             Expression<?>[] exprChildren = expr.getChildren();
             for(Expression i : exprChildren){
                 if(ifThenElseCheck(i)){
-                    return true;
+                    check = true;
+                    return check;
                 }
             }
         }
-        return false;
+        return check;
     }
 
     public static boolean letExpressionCheck(Expression<?> expr){
+        boolean check = false;
         if(expr instanceof LetExpression){
-            return true;
+            check = true;
+            return check;
         }
 
         Expression<?>[] exprChildren = expr.getChildren();
         for(Expression i : exprChildren){
             if(letExpressionCheck(i)){
-                return true;
+                check = true;
+                return check;
             }
         }
-        return false;
+        return check;
     }
 
 }

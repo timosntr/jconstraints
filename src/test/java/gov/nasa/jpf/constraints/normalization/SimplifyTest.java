@@ -113,6 +113,20 @@ public class SimplifyTest {
 
         assertEquals(simplified, expected);
     }
+
+    /*@Test(groups = {"normalization"})
+    //TODO: fails
+    public void duplicatesTest7(){
+        Expression simplified = NormalizationUtil.simplifyProblem(ExpressionUtil.or(
+                ExpressionUtil.and(e2, e3, e1, e3),
+                ExpressionUtil.and(e3, e2, e2)));
+
+        Expression expected = ExpressionUtil.or(
+                ExpressionUtil.and(e2, e3, e1),
+                ExpressionUtil.and(e3, e2));
+
+        assertEquals(simplified, expected);
+    }*/
 }
 
 
