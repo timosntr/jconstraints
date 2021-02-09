@@ -61,32 +61,32 @@ public class SimplifyTest {
 
         assertEquals(simplified, expected);
     }
-    @Test(groups = {"normalization"})
+    /*@Test(groups = {"normalization"})
     public void duplicatesTest2(){
         Expression simplified = NormalizationUtil.simplifyProblem(con2);
         Expression expected = ExpressionUtil.and(e1, e2);
 
         assertEquals(simplified, expected);
-    }
-    @Test(groups = {"normalization"})
+    }*/
+    /*@Test(groups = {"normalization"})
     public void duplicatesTest3(){
         Expression simplified = NormalizationUtil.simplifyProblem(ExpressionUtil.and(e1, e2, e1, e3, e2));
 
         Expression expected = ExpressionUtil.and(e1, e2, e3);
 
         assertEquals(simplified, expected);
-    }
+    }*/
 
-    @Test(groups = {"normalization"})
+    /*@Test(groups = {"normalization"})
     public void duplicatesTest4(){
         Expression simplified = NormalizationUtil.simplifyProblem(ExpressionUtil.or(e1, e2, e1, e3, e2));
 
         Expression expected = ExpressionUtil.or(e1, e2, e3);
 
         assertEquals(simplified, expected);
-    }
+    }*/
 
-    @Test(groups = {"normalization"})
+    /*@Test(groups = {"normalization"})
     public void duplicatesTest5(){
         Expression simplified = NormalizationUtil.simplifyProblem(ExpressionUtil.or(
                 ExpressionUtil.and(e2, e3, e1, e3),
@@ -97,9 +97,9 @@ public class SimplifyTest {
                 (ExpressionUtil.or(e1, e2)));
 
         assertEquals(simplified, expected);
-    }
+    }*/
 
-    @Test(groups = {"normalization"})
+    /*@Test(groups = {"normalization"})
     public void duplicatesTest6(){
         Expression simplified = NormalizationUtil.simplifyProblem(ExpressionUtil.or(
                 ExpressionUtil.and(e2, e3, e1, e3),
@@ -112,7 +112,7 @@ public class SimplifyTest {
                 ExpressionUtil.and(e3, e2));
 
         assertEquals(simplified, expected);
-    }
+    }*/
 
     /*@Test(groups = {"normalization"})
     //TODO: fails

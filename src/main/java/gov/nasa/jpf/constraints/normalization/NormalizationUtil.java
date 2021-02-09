@@ -34,8 +34,74 @@ import java.util.*;
 
 public class NormalizationUtil {
 
-    //ToDo: normalize (mit quantifiercheck und dann entsprechender aufruf des passenden algorithmus?)
-    //todo: simplify ist noch nicht ganz funktionstüchtig!
+    public static <E> Expression<E> normalize(Expression<E> e, String form){
+        boolean buildCnf = false;
+        boolean buildDnf = false;
+        if(form.equalsIgnoreCase("cnf")){
+            buildCnf = true;
+        } else if(form.equalsIgnoreCase("dnf")){
+            buildDnf = true;
+        } else {
+            throw new UnsupportedOperationException("Parameter 'cnf' or 'dnf' needed!");
+        }
+
+        if(quantifierCheck(e)){
+            if(buildCnf){
+                Expression cnf = createCNFforMatrix(e);
+                return cnf;
+            } else if(buildDnf){
+                Expression dnf = createDNF(e);
+                return dnf;
+            } else {
+                throw new UnsupportedOperationException("Parameter 'cnf' or 'dnf' needed!");
+            }
+        } else {
+            if(buildCnf){
+                Expression cnf = createCNF(e);
+                return cnf;
+            } else if(buildDnf){
+                Expression nnf = createNNF(e);
+                Expression dnf = createDNFNoQuantorHandling(nnf);
+                return dnf;
+            } else {
+                throw new UnsupportedOperationException("Parameter 'cnf' or 'dnf' needed!");
+            }
+        }
+    }
+
+    public static <E> Expression<E> createNNF(Expression<E> e) {
+        //LetExpressions have to be flattened to get children
+        Expression noLet = eliminateLetExpressions(e);
+        //TODO: check
+        Expression simplified = simplifyProblem(noLet);
+        Expression ordered = orderProblem(simplified);
+
+        Expression noEquivalence = eliminateEquivalence(ordered);
+        Expression noImplication = eliminateImplication(noEquivalence);
+        Expression noXOR = eliminateXOR(noImplication);
+        Expression noIte = eliminateIfThenElse(noXOR);
+        return NegatingVisitor.getInstance().apply(noIte, false);
+    }
+
+    public static <E> Expression<E> simpleNegationPush(Expression<E> e) {
+        return NegatingVisitor.getInstance().apply(e, false);
+    }
+
+    public static <E> Expression<E> pushNegationModified(Expression<E> e) {
+        //LetExpressions have to be flattened to get children
+        Expression noLet = eliminateLetExpressions(e);
+        //TODO: check
+        Expression simplified = simplifyProblem(noLet);
+        Expression ordered = orderProblem(simplified);
+
+        Expression noEquivalence = eliminateEquivalence(ordered);
+        Expression noImplication = eliminateImplication(noEquivalence);
+        Expression noXOR = eliminateXOR(noImplication);
+        Expression noIte = eliminateIfThenElse(noXOR);
+        return ModifiedNegatingVisitor.getInstance().apply(noIte, false);
+
+    }
+
     public static <E> Expression<E> createCNFforMatrix(Expression<E> e) {
         //Expression simplified = simplifyProblem(e);
         Expression nnf = createNNF(e);
@@ -55,15 +121,11 @@ public class NormalizationUtil {
                 List<? extends Variable<?>> bound = ((QuantifierExpression) prenex).getBoundVariables();
                 Expression body = ((QuantifierExpression) prenex).getBody();
                 Expression matrix = ConjunctionCreatorVisitor.getInstance().apply(body, null);
-                //Expression simplifiedMatrix = simplifyProblem(matrix);
-                //Expression result = QuantifierExpression.create(q, bound, simplifiedMatrix);
                 Expression result = QuantifierExpression.create(q, bound, matrix);
                 return result;
             } else {
                 return ConjunctionCreatorVisitor.getInstance().apply(prenex, null);
-                //Expression cnf = ConjunctionCreatorVisitor.getInstance().apply(prenex, null);
-                //Expression simplifiedCNF = simplifyProblem(cnf);
-                //return simplifiedCNF;
+
             }
         } else {
             throw new UnsupportedOperationException("Creation of NNF failed, no CNF created!");
@@ -71,24 +133,12 @@ public class NormalizationUtil {
     }
 
     public static <E> Expression<E> createCNF(Expression<E> e) {
-
-        //Expression simplified = simplifyProblem(e);
         Expression nnf = createNNF(e);
-        //Expression simplified = simplifyProblem(nnf);
         if (!nnf.equals(null)) {
             return ConjunctionCreatorVisitor.getInstance().apply(nnf, null);
-            //Expression cnf = ConjunctionCreatorVisitor.getInstance().apply(simplified, null);
-            //Expression simplifiedCNF = simplifyProblem(cnf);
-            //return simplifiedCNF;
         } else {
             throw new UnsupportedOperationException("Creation of NNF failed, no CNF created!");
         }
-    }
-
-    public static <E> Expression<E> simplifyProblem(Expression<E> e) {
-        //Expression noLet = eliminateLetExpressions(e);
-        LinkedList<Expression<?>> data = new LinkedList<>();
-        return SimplifyProblemVisitor.getInstance().apply(e, data);
     }
 
     public static <E> Expression<E> createCNFNoQuantorHandling(Expression<E> e) {
@@ -97,7 +147,6 @@ public class NormalizationUtil {
 
     //nnf has to be created beforehand
     public static <E> Expression<E> createDNF(Expression<E> e) {
-        //Expression simplified = simplifyProblem(e);
         Expression nnf = createNNF(e);
         if (!nnf.equals(null)) {
             if(quantifierCheck(nnf)){
@@ -120,15 +169,9 @@ public class NormalizationUtil {
                     return result;
                 } else {
                     return DisjunctionCreatorVisitor.getInstance().apply(prenex, null);
-                    //Expression dnf =  DisjunctionCreatorVisitor.getInstance().apply(prenex, null);
-                    //Expression simplifiedDNF = simplifyProblem(dnf);
-                    //return simplifiedDNF;
                 }
             } else {
                 return DisjunctionCreatorVisitor.getInstance().apply(nnf, null);
-                //Expression dnf =  DisjunctionCreatorVisitor.getInstance().apply(simplified, null);
-                //Expression simplifiedDNF = simplifyProblem(dnf);
-                //return simplifiedDNF;
             }
         } else {
             throw new UnsupportedOperationException("Creation of NNF failed, no DNF created!");
@@ -140,157 +183,14 @@ public class NormalizationUtil {
         return DisjunctionCreatorVisitor.getInstance().apply(e, null);
     }
 
-    public static <E> Expression<E> createNNF(Expression<E> e) {
-        //LetExpressions have to be flattened to get children
-        Expression noLet = eliminateLetExpressions(e);
-        if(!noLet.equals(null)) {
-            Expression noEquivalence = eliminateEquivalence(noLet);
-            if (!noEquivalence.equals(null)) {
-                Expression noImplication = eliminateImplication(noEquivalence);
-                if (!noImplication.equals(null)) {
-                    Expression noXOR = eliminateXOR(noImplication);
-                    if (!noXOR.equals(null)) {
-                        Expression noIte = eliminateIfThenElse(noXOR);
-                        //Expression noIte = eliminatePropositionalIfThenElse(noXOR);
-                        if(!noIte.equals(null)){
-                            return NegatingVisitor.getInstance().apply(noIte, false);
-                        //return NegatingVisitor.getInstance().apply(noXOR, false);
-                        } else {
-                            System.out.println("eliminateIfThenElse failed!");
-                        }
-                    }
-                    System.out.println("eliminateXOR failed!");
-                }
-                System.out.println("eliminateImplication failed!");
-            }
-            System.out.println("eliminateEquivalence failed!");
-        }
-        throw new UnsupportedOperationException("Negations were not pushed!");
+    //todo: simplify does not remove duplicates completely yet
+    public static <E> Expression<E> simplifyProblem(Expression<E> e) {
+        LinkedList<Expression<?>> data = new LinkedList<>();
+        return SimplifyProblemVisitor.getInstance().apply(e, data);
     }
 
-    public static <E> Expression<E> simpleNegationPush(Expression<E> e) {
-        return NegatingVisitor.getInstance().apply(e, false);
-    }
-
-    public static <E> Expression<E> pushNegationModified(Expression<E> e) {
-        //LetExpressions have to be flattened to get children
-        Expression noLet = eliminateLetExpressions(e);
-        if(!noLet.equals(null)) {
-            Expression noEquivalence = eliminateEquivalence(noLet);
-            if (!noEquivalence.equals(null)) {
-                Expression noImplication = eliminateImplication(noEquivalence);
-                if (!noImplication.equals(null)) {
-                    Expression noXOR = eliminateXOR(noImplication);
-                    if (!noXOR.equals(null)) {
-                        Expression noIte = eliminateIfThenElse(noXOR);
-                        if(!noIte.equals(null)){
-                            return ModifiedNegatingVisitor.getInstance().apply(noIte, false);
-                        } else {
-                            System.out.println("eliminateIfThenElse failed!");
-                            return NegatingVisitor.getInstance().apply(noXOR, false);
-                        }
-                    }
-                    System.out.println("eliminateXOR failed!");
-                }
-                System.out.println("eliminateImplication failed!");
-            }
-            System.out.println("eliminateEquivalence failed!");
-        }
-        throw new UnsupportedOperationException("Negations were not pushed!");
-    }
-    //TODO: angepasst an jeweiligen Schritt im Algorithmus
-    public static int countPushsIntoLogic(Expression e) {
-        //make sure, that the same transformation as in reality is transformed
-        Expression noLet = eliminateLetExpressions(e);
-        Expression noEquivalence = eliminateEquivalence(noLet);
-        Expression noImplication = eliminateImplication(noEquivalence);
-        Expression noXOR = eliminateXOR(noImplication);
-        Expression noIte = eliminateIfThenElse(noXOR);
-        int[] arr =  NegatingVisitor.getInstance().countNegationSteps(noIte);
-        int countNumBoolNegations = arr[0];
-        return countNumBoolNegations;
-    }
-
-    public static int countAllNegationPushs(Expression e) {
-        //make sure, that the same transformation as in reality is transformed
-        Expression noLet = eliminateLetExpressions(e);
-        Expression noEquivalence = eliminateEquivalence(noLet);
-        Expression noImplication = eliminateImplication(noEquivalence);
-        Expression noXOR = eliminateXOR(noImplication);
-        Expression noIte = eliminateIfThenElse(noXOR);
-        int[] arr =  NegatingVisitor.getInstance().countNegationSteps(noIte);
-        int countAllNegationPushs = arr[1];
-        return countAllNegationPushs;
-    }
-
-
-    public static int countMiniScopingSteps(Expression e) {
-        //make sure, that the same transformation as in reality is transformed
-        Expression nnf = createNNF(e);
-        int countMiniScopingSteps = 0;
-        if(quantifierCheck(nnf)) {
-            Expression renamed = renameAllBoundVars(nnf);
-            //miniscoping is only senseful if there is at least an EXISTS after creation of nnf
-            Expression beforeSkolemization;
-            if (checkForExists(renamed)) {
-                beforeSkolemization = miniScope(renamed);
-                countMiniScopingSteps =  MiniScopingVisitor.getInstance().countMiniScopeSteps(beforeSkolemization);
-            }
-        }
-        return countMiniScopingSteps;
-    }
-
-    public static int countMiniScopingOperationTransformations(Expression e) {
-        //make sure, that the same transformation as in reality is transformed
-        Expression nnf = createNNF(e);
-        int operatorTransformations = 0;
-        if(quantifierCheck(nnf)) {
-            Expression renamed = renameAllBoundVars(nnf);
-            //miniscoping is only senseful if there is at least an EXISTS after creation of nnf
-            Expression beforeSkolemization;
-            if (checkForExists(renamed)) {
-                beforeSkolemization = miniScope(renamed);
-                operatorTransformations =  MiniScopingVisitor.getInstance().countMiniScopeOperatorTransformations(beforeSkolemization);
-            }
-        }
-        return operatorTransformations;
-    }
-
-
-    /*public static int countCNFSteps(Expression e) {
-        //make sure, that the same transformation as in reality is transformed
-        Expression nnf = createNNF(e);
-        int countCNFSteps =  ConjunctionCreatorVisitor.getInstance().countCNFSteps(nnf);
-        return countCNFSteps;
-    }*/
-
-    /*public static int countCNFStepsInMatrix(Expression e) {
-        //make sure, that the same transformation as in reality is transformed
-        Expression nnf = createNNF(e);
-        Expression renamed = renameAllBoundVars(nnf);
-        //miniscoping is only senseful if there is at least an EXISTS after creation of nnf
-        Expression beforeSkolemization;
-        if(checkForExists(renamed)){
-            beforeSkolemization = miniScope(renamed);
-        } else {
-            beforeSkolemization = renamed;
-        }
-        Expression skolemized = skolemize(beforeSkolemization);
-        Expression prenex = prenexing(skolemized);
-        if(prenex instanceof QuantifierExpression){
-            Expression body = ((QuantifierExpression) prenex).getBody();
-            int countCNFSteps =  ConjunctionCreatorVisitor.getInstance().countCNFSteps(body);
-            return countCNFSteps;
-        } else {
-            int countCNFSteps =  ConjunctionCreatorVisitor.getInstance().countCNFSteps(prenex);
-            return countCNFSteps;
-        }
-    }*/
-
-    public static int countDNFSteps(Expression e) {
-        Expression nnf = createNNF(e);
-        int countDNFSteps =  DisjunctionCreatorVisitor.getInstance().countDNFSteps(nnf);
-        return countDNFSteps;
+    public static <E> Expression<E> orderProblem(Expression<E> e) {
+        return OrderingVisitor.getInstance().apply(e, null);
     }
 
     public static <E> Expression<E> eliminateEquivalence(Expression<E> e) {
@@ -375,7 +275,7 @@ public class NormalizationUtil {
         return false;
     }
 
-    //checking methods
+    //checking and counting methods
     public static boolean quantifierCheck(Expression<?> expr){
         if(expr instanceof QuantifierExpression){
             return true;
@@ -781,4 +681,98 @@ public class NormalizationUtil {
         return check;
     }
 
+    //stepcounter methods
+    //TODO: anpassen an jeweiligen Schritt im Algorithmus (simplify und order fehlen)
+    public static int countPushsIntoLogic(Expression e) {
+        //make sure, that the same transformation as in reality is transformed
+        Expression noLet = eliminateLetExpressions(e);
+        Expression noEquivalence = eliminateEquivalence(noLet);
+        Expression noImplication = eliminateImplication(noEquivalence);
+        Expression noXOR = eliminateXOR(noImplication);
+        Expression noIte = eliminateIfThenElse(noXOR);
+        int[] arr =  NegatingVisitor.getInstance().countNegationSteps(noIte);
+        int countNumBoolNegations = arr[0];
+        return countNumBoolNegations;
+    }
+
+    public static int countAllNegationPushs(Expression e) {
+        //make sure, that the same transformation as in reality is transformed
+        Expression noLet = eliminateLetExpressions(e);
+        Expression noEquivalence = eliminateEquivalence(noLet);
+        Expression noImplication = eliminateImplication(noEquivalence);
+        Expression noXOR = eliminateXOR(noImplication);
+        Expression noIte = eliminateIfThenElse(noXOR);
+        int[] arr =  NegatingVisitor.getInstance().countNegationSteps(noIte);
+        int countAllNegationPushs = arr[1];
+        return countAllNegationPushs;
+    }
+
+    public static int countMiniScopingSteps(Expression e) {
+        //make sure, that the same transformation as in reality is transformed
+        Expression nnf = createNNF(e);
+        int countMiniScopingSteps = 0;
+        if(quantifierCheck(nnf)) {
+            Expression renamed = renameAllBoundVars(nnf);
+            //miniscoping is only senseful if there is at least an EXISTS after creation of nnf
+            Expression beforeSkolemization;
+            if (checkForExists(renamed)) {
+                beforeSkolemization = miniScope(renamed);
+                countMiniScopingSteps =  MiniScopingVisitor.getInstance().countMiniScopeSteps(beforeSkolemization);
+            }
+        }
+        return countMiniScopingSteps;
+    }
+
+    public static int countMiniScopingOperationTransformations(Expression e) {
+        //make sure, that the same transformation as in reality is transformed
+        Expression nnf = createNNF(e);
+        int operatorTransformations = 0;
+        if(quantifierCheck(nnf)) {
+            Expression renamed = renameAllBoundVars(nnf);
+            //miniscoping is only senseful if there is at least an EXISTS after creation of nnf
+            Expression beforeSkolemization;
+            if (checkForExists(renamed)) {
+                beforeSkolemization = miniScope(renamed);
+                operatorTransformations =  MiniScopingVisitor.getInstance().countMiniScopeOperatorTransformations(beforeSkolemization);
+            }
+        }
+        return operatorTransformations;
+    }
+
+
+    /*public static int countCNFSteps(Expression e) {
+        //make sure, that the same transformation as in reality is transformed
+        Expression nnf = createNNF(e);
+        int countCNFSteps =  ConjunctionCreatorVisitor.getInstance().countCNFSteps(nnf);
+        return countCNFSteps;
+    }*/
+
+    /*public static int countCNFStepsInMatrix(Expression e) {
+        //make sure, that the same transformation as in reality is transformed
+        Expression nnf = createNNF(e);
+        Expression renamed = renameAllBoundVars(nnf);
+        //miniscoping is only senseful if there is at least an EXISTS after creation of nnf
+        Expression beforeSkolemization;
+        if(checkForExists(renamed)){
+            beforeSkolemization = miniScope(renamed);
+        } else {
+            beforeSkolemization = renamed;
+        }
+        Expression skolemized = skolemize(beforeSkolemization);
+        Expression prenex = prenexing(skolemized);
+        if(prenex instanceof QuantifierExpression){
+            Expression body = ((QuantifierExpression) prenex).getBody();
+            int countCNFSteps =  ConjunctionCreatorVisitor.getInstance().countCNFSteps(body);
+            return countCNFSteps;
+        } else {
+            int countCNFSteps =  ConjunctionCreatorVisitor.getInstance().countCNFSteps(prenex);
+            return countCNFSteps;
+        }
+    }*/
+
+    public static int countDNFSteps(Expression e) {
+        Expression nnf = createNNF(e);
+        int countDNFSteps =  DisjunctionCreatorVisitor.getInstance().countDNFSteps(nnf);
+        return countDNFSteps;
+    }
 }
