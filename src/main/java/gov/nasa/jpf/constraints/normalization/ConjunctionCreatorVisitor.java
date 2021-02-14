@@ -41,7 +41,7 @@ public class ConjunctionCreatorVisitor extends
         return INSTANCE;
     }
 
-    //int countCNFSteps;
+    int countCNFSteps;
 
     @Override
     public Expression<?> visit(PropositionalCompound expr, Void data) {
@@ -64,45 +64,43 @@ public class ConjunctionCreatorVisitor extends
             Expression leftRight = ((PropositionalCompound) leftChild).getRight();
             Expression rightLeft = ((PropositionalCompound) rightChild).getLeft();
             Expression rightRight = ((PropositionalCompound) rightChild).getRight();
-
+            //further visits in children are needed to push disjunctions as far as possible
             if (operatorIsOR && leftOpIsAND && rightOpIsAND) {
                 //case: (A AND B) OR (C AND D)
-                //countCNFSteps++;
+                countCNFSteps++;
                 Expression result = PropositionalCompound.create(
                         PropositionalCompound.create(
-                                PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightLeft),
+                                (Expression<Boolean>) visit(PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightLeft), data),
                                 LogicalOperator.AND,
-                                PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightRight)),
+                                visit(PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightRight), data)),
                         LogicalOperator.AND,
                         PropositionalCompound.create(
-                                PropositionalCompound.create(leftRight, LogicalOperator.OR, rightLeft),
+                                (Expression<Boolean>) visit(PropositionalCompound.create(leftRight, LogicalOperator.OR, rightLeft), data),
                                 LogicalOperator.AND,
-                                PropositionalCompound.create(leftRight, LogicalOperator.OR, rightRight)));
+                                visit(PropositionalCompound.create(leftRight, LogicalOperator.OR, rightRight), data)));
                 return result;
 
             } else if (operatorIsOR && leftOpIsAND && rightOpIsOR) {
                 //case: (A AND B) OR (C OR D)
-                //countCNFSteps++;
+                countCNFSteps++;
                 Expression result = PropositionalCompound.create(
-                        PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightChild),
+                        (Expression<Boolean>) visit(PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightChild), data),
                         LogicalOperator.AND,
-                        PropositionalCompound.create(leftRight, LogicalOperator.OR, rightChild));
+                        visit(PropositionalCompound.create(leftRight, LogicalOperator.OR, rightChild), data));
                 return result;
 
             } else if (operatorIsOR && leftOpIsOR && rightOpIsAND) {
                 //case: (A OR B) OR (C AND D)
-                //countCNFSteps++;
+                countCNFSteps++;
                 Expression result = PropositionalCompound.create(
-                        PropositionalCompound.create(leftChild, LogicalOperator.OR, rightLeft),
+                        (Expression<Boolean>) visit(PropositionalCompound.create(leftChild, LogicalOperator.OR, rightLeft), data),
                         LogicalOperator.AND,
-                        PropositionalCompound.create(leftChild, LogicalOperator.OR, rightRight));
+                        visit(PropositionalCompound.create(leftChild, LogicalOperator.OR, rightRight), data));
                 return result;
 
             } else if (operatorIsOR && leftOpIsOR && rightOpIsOR) {
                 //case: (A OR B) OR (C OR D)
                 //don't count this as step as no transformation is performed
-                /*Expression result = PropositionalCompound.create(leftChild, LogicalOperator.OR, rightChild);
-                return result;*/
                 return expr;
             }
 
@@ -115,20 +113,16 @@ public class ConjunctionCreatorVisitor extends
 
             if (operatorIsOR && leftOpIsAND) {
                 //case: (A AND B) OR (C)
-                //countCNFSteps++;
+                countCNFSteps++;
                 Expression result = PropositionalCompound.create(
-                        PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightChild),
+                        (Expression<Boolean>) visit(PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightChild), data),
                         LogicalOperator.AND,
-                        PropositionalCompound.create(leftRight, LogicalOperator.OR, rightChild));
+                        visit(PropositionalCompound.create(leftRight, LogicalOperator.OR, rightChild), data));
                 return result;
 
             } else if (operatorIsOR && leftOpIsOR) {
                 //case: (A OR B) OR (C)
                 //don't count this as step as no transformation is performed
-                /*Expression result = ExpressionUtil.or(
-                        PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightChild),
-                        PropositionalCompound.create(leftRight, LogicalOperator.OR, rightChild));
-                return result;*/
                 return expr;
             }
         } else if (!leftIsPropComp && rightIsPropComp) {
@@ -140,20 +134,16 @@ public class ConjunctionCreatorVisitor extends
 
             if (operatorIsOR && rightOpIsAND) {
                 //case: (A) OR (C AND D)
-                //countCNFSteps++;
+                countCNFSteps++;
                 Expression result = PropositionalCompound.create(
-                        PropositionalCompound.create(leftChild, LogicalOperator.OR, rightLeft),
+                        (Expression<Boolean>) visit(PropositionalCompound.create(leftChild, LogicalOperator.OR, rightLeft), data),
                         LogicalOperator.AND,
-                        PropositionalCompound.create(leftChild, LogicalOperator.OR, rightRight));
+                        visit(PropositionalCompound.create(leftChild, LogicalOperator.OR, rightRight), data));
                 return result;
 
             } else if (operatorIsOR && rightOpIsOR) {
                 //case: (A) OR (C OR D)
                 //don't count this as step as no transformation is performed
-                /*Expression result = ExpressionUtil.or(
-                        PropositionalCompound.create(leftChild, LogicalOperator.OR, rightLeft),
-                        PropositionalCompound.create(leftChild, LogicalOperator.OR, rightRight));
-                return result;*/
                 return expr;
             }
 
@@ -270,8 +260,8 @@ public class ConjunctionCreatorVisitor extends
         return visit(expr, data).requireAs(expr.getType());
     }
 
-    /*public int countCNFSteps(Expression expr){
+    public int countCNFSteps(Expression expr){
         apply(expr, null);
         return countCNFSteps;
-    }*/
+    }
 }

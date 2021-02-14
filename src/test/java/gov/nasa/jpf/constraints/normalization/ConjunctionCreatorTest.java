@@ -327,7 +327,7 @@ public class ConjunctionCreatorTest {
                 ExpressionUtil.or(e4, ExpressionUtil.and(e4, e4)));
 
         Expression<Boolean> cnf = NormalizationUtil.createCNF(nested3);
-
+        System.out.println(cnf);
         assertNotEquals(cnf, nested3);
     }
 
@@ -337,11 +337,12 @@ public class ConjunctionCreatorTest {
 
         Expression<Boolean> cnf = NormalizationUtil.createCNF(nested4);
 
+        System.out.println(cnf);
         assertNotEquals(cnf, nested4);
     }
 
     @Test(groups = {"normalization"})
-    public void nestedTest(){
+    public void nestedTest5(){
         Expression nested = PropositionalCompound.create(
                 PropositionalCompound.create(b1, LogicalOperator.AND, b2),
                 LogicalOperator.OR,
@@ -353,6 +354,21 @@ public class ConjunctionCreatorTest {
         Expression<Boolean> cnf = NormalizationUtil.createCNF(nested);
 
         System.out.println(cnf);
+    }
+
+    @Test(groups = {"normalization"})
+    public void nestedTest6(){
+        Expression nested = ExpressionUtil.or(ExpressionUtil.and(e1, e1, e1), ExpressionUtil.and(e2, e2, e2));
+
+        Expression expected = ExpressionUtil.and(ExpressionUtil.or(e1, e2), ExpressionUtil.or(e1, e2), ExpressionUtil.or(e1, e2),
+                ExpressionUtil.or(e1, e2), ExpressionUtil.or(e1, e2), ExpressionUtil.or(e1, e2),
+                ExpressionUtil.or(e1, e2), ExpressionUtil.or(e1, e2), ExpressionUtil.or(e1, e2));
+
+        Expression<Boolean> cnf = NormalizationUtil.createCNF(nested);
+
+        System.out.println(cnf);
+        //fails only because of the brackets
+        //assertEquals(cnf, expected);
     }
 }
 

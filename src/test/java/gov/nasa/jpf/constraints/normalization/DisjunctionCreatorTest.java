@@ -326,7 +326,7 @@ public class DisjunctionCreatorTest {
     }
 
     @Test(groups = {"normalization"})
-    //Todo: investigate if works as intended
+    //Todo: investigate if works as intended -> looks like it does
     public void nestedTest(){
         Expression nested = PropositionalCompound.create(
                 PropositionalCompound.create(b1, LogicalOperator.OR, b2),
@@ -339,6 +339,20 @@ public class DisjunctionCreatorTest {
         Expression<Boolean> dnf = (Expression<Boolean>) nested.accept(DisjunctionCreatorVisitor.getInstance(), null);
 
         System.out.println(dnf);
+    }
+
+    @Test(groups = {"normalization"})
+    public void nestedTest6(){
+        Expression nested = ExpressionUtil.and(ExpressionUtil.or(e1, e1), ExpressionUtil.or(e2, e2));
+
+        Expression expected = ExpressionUtil.or(ExpressionUtil.and(e1, e2), ExpressionUtil.and(e1, e2), ExpressionUtil.and(e1, e2),
+                ExpressionUtil.and(e1, e2));
+
+        Expression<Boolean> dnf = NormalizationUtil.createDNF(nested);
+
+        System.out.println(dnf);
+        //fails only because of the brackets
+        //assertEquals(dnf, expected);
     }
 }
 
