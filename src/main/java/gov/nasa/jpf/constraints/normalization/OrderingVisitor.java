@@ -27,8 +27,8 @@ import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Variable;
 import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
-//TODO: further orderings?
-//this visitor ensures the ordering: Variable (operator/comparator) Constant
+
+//this visitor should ensure the ordering: Variable (operator/comparator) Constant
 public class OrderingVisitor extends
         DuplicatingVisitor<Void> {
 
@@ -40,55 +40,53 @@ public class OrderingVisitor extends
 
     @Override
     public Expression<?> visit(NumericBooleanExpression n, Void data) {
-        Expression left = n.getLeft();
-        Expression right = n.getRight();
+        Expression left = visit(n.getLeft(), data);
+        Expression right = visit(n.getRight(), data);
         NumericComparator comparator = n.getComparator();
 
         if(left instanceof Constant && (right instanceof Variable || right instanceof NumericCompound)){
             if(comparator.equals(NumericComparator.LT) || comparator.equals(NumericComparator.LE) || comparator.equals(NumericComparator.GT) || comparator.equals(NumericComparator.GE)){
-                return NumericBooleanExpression.create(visit(right, data), comparator.not(), visit(left, data));
+                return NumericBooleanExpression.create(right, comparator.not(), left);
             } else {
                 //EQ and NE should not be changed
-                return NumericBooleanExpression.create(visit(right, data), comparator, visit(left, data));
+                return NumericBooleanExpression.create(right, comparator, left);
             }
         } else {
-            return NumericBooleanExpression.create(visit(left, data), comparator, visit(right, data));
+            return NumericBooleanExpression.create(left, comparator, right);
         }
     }
 
     @Override
     public <E> Expression<?> visit(NumericCompound<E> n, Void data) {
-        Expression left = n.getLeft();
-        Expression right = n.getRight();
+        Expression left = visit(n.getLeft(), data);
+        Expression right = visit(n.getRight(), data);
         NumericOperator operator = n.getOperator();
 
         if(left instanceof Constant && (right instanceof Variable || right instanceof NumericCompound)){
             if(operator.equals(NumericOperator.PLUS) || operator.equals(NumericOperator.MUL)){
-                return NumericCompound.create(visit(right, data), operator, visit(left, data));
-            } else if (operator.equals(NumericOperator.MINUS)){
-                return NumericCompound.create(UnaryMinus.create(visit(right, data)), NumericOperator.PLUS, visit(left, data));
+                return NumericCompound.create(right, operator, left);
             } else {
-                //no change of order if NumericOperator is REM or DIV (transformation here more complex)
-                return NumericCompound.create(visit(left, data), operator, visit(right, data));
+                //no change of order if NumericOperator is Minus, REM or DIV (transformation here more complex)
+                return NumericCompound.create(left, operator, right);
             }
 
         } else {
-            return NumericCompound.create(visit(left, data), operator, visit(right, data));
+            return NumericCompound.create(left, operator, right);
         }
     }
 
     @Override
     public Expression<?> visit(PropositionalCompound n, Void data) {
-        Expression left = n.getLeft();
-        Expression right = n.getRight();
+        Expression left = visit(n.getLeft(), data);
+        Expression right = visit(n.getRight(), data);
         LogicalOperator operator = n.getOperator();
         if(operator.equals(LogicalOperator.IMPLY)){
             return super.visit(n, data);
         }
         if((left instanceof Constant && !(right instanceof Constant)) || (!(left instanceof Variable) && right instanceof Variable)) {
-            return PropositionalCompound.create((Expression<Boolean>) visit(right, data), operator, visit(left, data));
+            return PropositionalCompound.create(right, operator, left);
         } else {
-            return super.visit(n, data);
+            return PropositionalCompound.create(left, operator, right);
         }
     }
 
