@@ -28,6 +28,7 @@ import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.types.BuiltinTypes;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
 import gov.nasa.jpf.constraints.util.ExpressionUtil;
+import org.smtlib.logic.Logic;
 
 import java.util.LinkedList;
 
@@ -41,21 +42,36 @@ public class SimplifyProblemVisitor extends
     }
 
     LogicalOperator lastOperator;
-    boolean firstVisit = true;
 
     @Override
     public Expression<?> visit(PropositionalCompound n, LinkedList data) {
-        //Expression leftChild = visit(n.getLeft(), data);
-        //Expression rightChild = visit(n.getRight(), data);
-        Expression leftChild = visit(n.getLeft(), data);
-        Expression rightChild = visit(n.getRight(), data);
         LogicalOperator operator = n.getOperator();
-        if(firstVisit){
-            lastOperator = operator;
-            firstVisit = false;
-        }
+        //Expression leftChild = visit(n.getLeft(), data);
+        /*if(leftChild instanceof PropositionalCompound && n.getRight() instanceof PropositionalCompound){
+            if(!(((PropositionalCompound) leftChild).getOperator().equals(operator) && ((PropositionalCompound) n.getRight()).getOperator().equals(operator))){
+                data.clear();
+            }
+        } else if(leftChild instanceof PropositionalCompound){
+            if(!((PropositionalCompound) leftChild).getOperator().equals(operator)){
+                data.clear();
+            }
+        } else if (n.getRight() instanceof  PropositionalCompound){
+            if(!((PropositionalCompound) n.getRight()).getOperator().equals(operator)){
+                data.clear();
+            }
+        }*/
+        //data.clear();
+        //Expression rightChild = visit(n.getRight(), data);
 
-        //TODO: remove duplicates from clauses
+        Expression leftChild = n.getLeft();
+        Expression rightChild = n.getRight();
+
+        boolean leftChildIsProp = leftChild instanceof PropositionalCompound;
+        boolean rightChildIsProp = rightChild instanceof PropositionalCompound;
+
+        boolean removeLeft = false;
+        boolean removeRight = false;
+
         if(operator.equals(LogicalOperator.EQUIV)){
             if(leftChild instanceof Constant){
                 if(((Constant<?>) leftChild).getValue().equals(Boolean.TRUE)) {
@@ -81,39 +97,99 @@ public class SimplifyProblemVisitor extends
         if(operator.equals(LogicalOperator.AND)){
             if(leftChild.equals(rightChild)){
                 //or rightChild
-                return leftChild;
+                return visit(leftChild, data);
             }
-            /*if(operator.equals(lastOperator)){
-                if(!data.isEmpty()) {
+            /*if (data.contains(leftChild) && data.contains(rightChild)) {
+                data.add(n);
+            } else if(data.contains(leftChild)){
+                return rightChild;
+            } else if(data.contains(rightChild)){
+                return leftChild;
+            }*/
+            if(leftChildIsProp && rightChildIsProp) {
+                LogicalOperator leftOp = ((PropositionalCompound) leftChild).getOperator();
+                LogicalOperator rightOp = ((PropositionalCompound) rightChild).getOperator();
+                if(operator.equals(leftOp) && operator.equals(rightOp)){
+                    return PropositionalCompound.create((Expression<Boolean>) visit(leftChild, data), operator, visit(rightChild, data));
+                } else {
+                    Expression newLeft = visit(leftChild, data);
+                    data.clear();
+                    Expression newRight = visit(rightChild, data);
+                    return PropositionalCompound.create(newLeft, operator, newRight);
+                }
+            }
+            if(leftChildIsProp && !rightChildIsProp) {
+                LogicalOperator leftOp = ((PropositionalCompound) leftChild).getOperator();
+                if(operator.equals(leftOp)){
+                    Expression newLeft = visit(leftChild, data);
                     for (Object e : data) {
-                        if (e.equals(n.getLeft())) {
-                            data.add(n.getRight());
-                            lastOperator = operator;
-                            if(!(n.getLeft() instanceof PropositionalCompound)){
-                                return rightChild;
-                            }
-
-                        }
-                        if (e.equals(n.getRight())) {
-                            data.add(n.getLeft());
-                            lastOperator = operator;
-                            if(!(n.getRight() instanceof PropositionalCompound)){
-                                return leftChild;
-                            }
+                        if (e.equals(rightChild)) {
+                            removeRight = true;
                         }
                     }
-                    data.add(n.getLeft());
-                    data.add(n.getRight());
+                    if(removeRight){
+                        return newLeft;
+                    } else {
+                        data.add(rightChild);
+                        return PropositionalCompound.create(newLeft, operator, rightChild);
+                    }
                 } else {
-                    data.add(n.getLeft());
-                    data.add(n.getRight());
+                    Expression newLeft = visit(leftChild, data);
+                    data.clear();
+                    return PropositionalCompound.create(newLeft, operator, rightChild);
                 }
-            } else {
-                data.clear();
-                data.add(n.getLeft());
-                data.add(n.getRight());
-                lastOperator = operator;
-            }*/
+            }
+            if(!leftChildIsProp && rightChildIsProp){
+                LogicalOperator rightOp = ((PropositionalCompound) rightChild).getOperator();
+                if(operator.equals(rightOp)){
+                    Expression newRight = visit(rightChild, data);
+                    for (Object e : data) {
+                        if (e.equals(leftChild)) {
+                            removeLeft = true;
+                        }
+                    }
+                    if(removeLeft){
+                        return newRight;
+                    } else {
+                        data.add(leftChild);
+                        return PropositionalCompound.create(leftChild, operator, newRight);
+                    }
+                } else {
+                    Expression newRight = visit(rightChild, data);
+                    data.clear();
+                    return PropositionalCompound.create(leftChild, operator, newRight);
+                }
+            }
+            if(!leftChildIsProp && !rightChildIsProp){
+                if(leftChild.equals(rightChild)){
+                    //or rightChild
+                    data.add(leftChild);
+                    return leftChild;
+                } else {
+                    for (Object e : data) {
+                        if (e.equals(leftChild)) {
+                            removeLeft = true;
+                        }
+                        if (e.equals(rightChild)) {
+                            removeRight = true;
+                        }
+                    }
+                    if(removeLeft && removeRight){
+                        //TODO: how to return nothing? here, actually we need to return on the level above
+
+                    } else if(removeLeft){
+                        data.add(rightChild);
+                        return rightChild;
+                    } else if(removeRight){
+                        data.add(leftChild);
+                        return leftChild;
+                    } else {
+                        data.add(leftChild);
+                        data.add(rightChild);
+                        return n;
+                    }
+                }
+            }
 
             if(leftChild instanceof Negation){
                 if(rightChild.equals(((Negation) leftChild).getNegated())){
@@ -149,39 +225,92 @@ public class SimplifyProblemVisitor extends
         if(operator.equals(LogicalOperator.OR)){
             if(leftChild.equals(rightChild)){
                 //or rightChild
-                return leftChild;
+                return visit(leftChild, data);
             }
-            /*if(operator.equals(lastOperator)){
-                if(!data.isEmpty()) {
+            if(leftChildIsProp && rightChildIsProp) {
+                LogicalOperator leftOp = ((PropositionalCompound) leftChild).getOperator();
+                LogicalOperator rightOp = ((PropositionalCompound) rightChild).getOperator();
+                if(operator.equals(leftOp) && operator.equals(rightOp)){
+                    return PropositionalCompound.create((Expression<Boolean>) visit(leftChild, data), operator, visit(rightChild, data));
+                } else {
+                    Expression newLeft = visit(leftChild, data);
+                    data.clear();
+                    Expression newRight = visit(rightChild, data);
+                    return PropositionalCompound.create(newLeft, operator, newRight);
+                }
+            }
+            if(leftChildIsProp && !rightChildIsProp) {
+                LogicalOperator leftOp = ((PropositionalCompound) leftChild).getOperator();
+                if(operator.equals(leftOp)){
+                    Expression newLeft = visit(leftChild, data);
                     for (Object e : data) {
-                        if (e.equals(n.getLeft())) {
-                            data.add(n.getRight());
-                            lastOperator = operator;
-                            if(!(n.getLeft() instanceof PropositionalCompound)){
-                                return rightChild;
-                            }
-
-                        }
-                        if (e.equals(n.getRight())) {
-                            data.add(n.getLeft());
-                            lastOperator = operator;
-                            if(!(n.getRight() instanceof PropositionalCompound)){
-                                return leftChild;
-                            }
+                        if (e.equals(rightChild)) {
+                            removeRight = true;
                         }
                     }
-                    data.add(n.getLeft());
-                    data.add(n.getRight());
+                    if(removeRight){
+                        return newLeft;
+                    } else {
+                        data.add(rightChild);
+                        return PropositionalCompound.create(newLeft, operator, rightChild);
+                    }
                 } else {
-                    data.add(n.getLeft());
-                    data.add(n.getRight());
+                    Expression newLeft = visit(leftChild, data);
+                    data.clear();
+                    return PropositionalCompound.create(newLeft, operator, rightChild);
                 }
-            } else {
-                data.clear();
-                data.add(n.getLeft());
-                data.add(n.getRight());
-                lastOperator = operator;
-            }*/
+            }
+            if(!leftChildIsProp && rightChildIsProp){
+                LogicalOperator rightOp = ((PropositionalCompound) rightChild).getOperator();
+                if(operator.equals(rightOp)){
+                    Expression newRight = visit(rightChild, data);
+                    for (Object e : data) {
+                        if (e.equals(leftChild)) {
+                            removeLeft = true;
+                        }
+                    }
+                    if(removeLeft){
+                        return newRight;
+                    } else {
+                        data.add(leftChild);
+                        return PropositionalCompound.create(leftChild, operator, newRight);
+                    }
+                } else {
+                    Expression newRight = visit(rightChild, data);
+                    data.clear();
+                    return PropositionalCompound.create(leftChild, operator, newRight);
+                }
+            }
+            if(!leftChildIsProp && !rightChildIsProp){
+                if(leftChild.equals(rightChild)){
+                    //or rightChild
+                    data.add(leftChild);
+                    return leftChild;
+                } else {
+                    for (Object e : data) {
+                        if (e.equals(leftChild)) {
+                            removeLeft = true;
+                        }
+                        if (e.equals(rightChild)) {
+                            removeRight = true;
+                        }
+                    }
+                    if(removeLeft && removeRight){
+                        //TODO: how to return nothing? here, actually we need to return on the level above
+
+                    } else if(removeLeft){
+                        data.add(rightChild);
+                        return rightChild;
+                    } else if(removeRight){
+                        data.add(leftChild);
+                        return leftChild;
+                    } else {
+                        data.add(leftChild);
+                        data.add(rightChild);
+                        return n;
+                    }
+                }
+            }
 
             if(leftChild instanceof Negation) {
                 if(rightChild.equals(((Negation) leftChild).getNegated())) {
@@ -239,7 +368,7 @@ public class SimplifyProblemVisitor extends
                 }
             }
         }
-        return PropositionalCompound.create(leftChild, operator, rightChild);
+        return n;
     }
 
     @Override

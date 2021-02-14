@@ -61,32 +61,32 @@ public class SimplifyTest {
 
         assertEquals(simplified, expected);
     }
-    /*@Test(groups = {"normalization"})
+    @Test(groups = {"normalization"})
     public void duplicatesTest2(){
         Expression simplified = NormalizationUtil.simplifyProblem(con2);
         Expression expected = ExpressionUtil.and(e1, e2);
 
         assertEquals(simplified, expected);
-    }*/
-    /*@Test(groups = {"normalization"})
+    }
+    @Test(groups = {"normalization"})
     public void duplicatesTest3(){
         Expression simplified = NormalizationUtil.simplifyProblem(ExpressionUtil.and(e1, e2, e1, e3, e2));
 
         Expression expected = ExpressionUtil.and(e1, e2, e3);
 
         assertEquals(simplified, expected);
-    }*/
+    }
 
-    /*@Test(groups = {"normalization"})
+    @Test(groups = {"normalization"})
     public void duplicatesTest4(){
         Expression simplified = NormalizationUtil.simplifyProblem(ExpressionUtil.or(e1, e2, e1, e3, e2));
 
         Expression expected = ExpressionUtil.or(e1, e2, e3);
 
         assertEquals(simplified, expected);
-    }*/
+    }
 
-    /*@Test(groups = {"normalization"})
+    @Test(groups = {"normalization"})
     public void duplicatesTest5(){
         Expression simplified = NormalizationUtil.simplifyProblem(ExpressionUtil.or(
                 ExpressionUtil.and(e2, e3, e1, e3),
@@ -97,9 +97,9 @@ public class SimplifyTest {
                 (ExpressionUtil.or(e1, e2)));
 
         assertEquals(simplified, expected);
-    }*/
+    }
 
-    /*@Test(groups = {"normalization"})
+    @Test(groups = {"normalization"})
     public void duplicatesTest6(){
         Expression simplified = NormalizationUtil.simplifyProblem(ExpressionUtil.or(
                 ExpressionUtil.and(e2, e3, e1, e3),
@@ -112,10 +112,9 @@ public class SimplifyTest {
                 ExpressionUtil.and(e3, e2));
 
         assertEquals(simplified, expected);
-    }*/
+    }
 
-    /*@Test(groups = {"normalization"})
-    //TODO: fails
+    @Test(groups = {"normalization"})
     public void duplicatesTest7(){
         Expression simplified = NormalizationUtil.simplifyProblem(ExpressionUtil.or(
                 ExpressionUtil.and(e2, e3, e1, e3),
@@ -126,7 +125,77 @@ public class SimplifyTest {
                 ExpressionUtil.and(e3, e2));
 
         assertEquals(simplified, expected);
-    }*/
+    }
+
+    @Test(groups = {"normalization"})
+    public void duplicatesTest8(){
+        Expression simplified = NormalizationUtil.simplifyProblem(ExpressionUtil.and(
+                ExpressionUtil.and(e2, e3, e1, e3),
+                ExpressionUtil.or(e2, e3, e1, e1),
+                ExpressionUtil.or(e2, e3, e2),
+                ExpressionUtil.and(e3, e2, e1, e3)));
+
+        Expression expected = ExpressionUtil.and(
+                ExpressionUtil.and(e2, e3, e1),
+                ExpressionUtil.or(e2, e3, e1),
+                ExpressionUtil.or(e2, e3),
+                ExpressionUtil.and(e3, e2, e1));
+
+        assertEquals(simplified, expected);
+    }
+
+    @Test(groups = {"normalization"})
+    //TODO: either tests 10 and 9 (if not simplified twice) or test 11 fail
+    public void duplicatesTest9(){
+        Expression simplified1 = NormalizationUtil.simplifyProblem(ExpressionUtil.and(
+                ExpressionUtil.or(e2, e3, e3, e2),
+                ExpressionUtil.or(e2, e3)));
+
+        Expression simplified2 = NormalizationUtil.simplifyProblem(simplified1);
+
+        Expression expected = ExpressionUtil.or(e2, e3);
+
+        assertEquals(simplified2, expected);
+    }
+
+    @Test(groups = {"normalization"})
+    //TODO: either tests 10 and 9 (if not simplified twice) or test 11 fail
+    public void duplicatesTest10(){
+        Expression simplified1 = NormalizationUtil.simplifyProblem(ExpressionUtil.and(
+                ExpressionUtil.and(e2, e3, e3, e2),
+                ExpressionUtil.and(e2, e3)));
+
+        Expression simplified2 = NormalizationUtil.simplifyProblem(simplified1);
+
+        Expression expected = ExpressionUtil.and(e2, e3);
+
+        assertEquals(simplified2, expected);
+    }
+
+    @Test(groups = {"normalization"})
+    //TODO: either tests 10 and 9 (if not simplified twice) or test 11 fail
+    public void duplicatesTest11(){
+        Expression simplified = NormalizationUtil.simplifyProblem(ExpressionUtil.and(
+                ExpressionUtil.and(e2, e3),
+                ExpressionUtil.and(e1, e2, e3)));
+
+        Expression expected = ExpressionUtil.and(ExpressionUtil.and(e2, e3), e1);
+
+        assertEquals(simplified, expected);
+    }
+
+    @Test(groups = {"normalization"})
+    public void duplicatesTest12(){
+        Expression simplified = NormalizationUtil.simplifyProblem(ExpressionUtil.and(
+                ExpressionUtil.or(e2, e3, ExpressionUtil.and(e3, e2)),
+                ExpressionUtil.or(e2, e3, e2)));
+
+        Expression expected = ExpressionUtil.and(
+                ExpressionUtil.or(e2, e3, ExpressionUtil.and(e3, e2)),
+                ExpressionUtil.or(e2, e3));
+
+        assertEquals(simplified, expected);
+    }
 }
 
 
