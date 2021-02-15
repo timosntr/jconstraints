@@ -51,6 +51,7 @@ public class NormalizationUtilTest {
     Expression e1 = NumericBooleanExpression.create(x, NumericComparator.LT, c1);
     Expression e2 = NumericBooleanExpression.create(y, NumericComparator.LE, c2);
     Expression e3 = NumericBooleanExpression.create(p, NumericComparator.EQ, c2);
+    Expression e4 = NumericBooleanExpression.create(y, NumericComparator.EQ, c2);
 
     Expression con1 = PropositionalCompound.create(e1, LogicalOperator.AND, e2);
     Expression dis1 = PropositionalCompound.create(e1, LogicalOperator.OR, e2);
@@ -175,5 +176,57 @@ public class NormalizationUtilTest {
 
         int max = NormalizationUtil.maxDisjunctionLength(dnf);
         assertEquals(max, 2);
+    }
+
+    @Test(groups = {"normalization"})
+    public void normalizeTest1(){
+        Expression disjunction8 = PropositionalCompound.create(dis1, LogicalOperator.OR, con1);
+        Expression expected = PropositionalCompound.create(
+                PropositionalCompound.create(dis1, LogicalOperator.OR, e1),
+                LogicalOperator.AND,
+                PropositionalCompound.create(dis1, LogicalOperator.OR, e2));
+
+        Expression<Boolean> cnf = NormalizationUtil.normalize(disjunction8, "cnf");
+
+        assertEquals(cnf, expected);
+    }
+
+    @Test(groups = {"normalization"})
+    public void normalizeTest2(){
+        List<Variable<?>> bound = new ArrayList<>();
+        bound.add(x);
+        Expression disjunction8 = PropositionalCompound.create(dis1, LogicalOperator.OR, con1);
+        Expression<Boolean> quantified = QuantifierExpression.create(Quantifier.FORALL, bound, disjunction8);
+
+        Expression<Boolean> cnf = NormalizationUtil.normalize(quantified, "cnf");
+
+        System.out.println(quantified);
+        System.out.println(cnf);
+    }
+
+    @Test(groups = {"normalization"})
+    public void normalizeTest3(){
+        Expression conjunction7 = PropositionalCompound.create(dis1, LogicalOperator.AND, con1);
+        Expression expected = PropositionalCompound.create(
+                PropositionalCompound.create(e1, LogicalOperator.AND, con1),
+                LogicalOperator.OR,
+                PropositionalCompound.create(e2, LogicalOperator.AND, con1));
+
+        Expression<Boolean> dnf = NormalizationUtil.normalize(conjunction7, "dnf");
+
+        assertEquals(dnf, expected);
+    }
+
+    @Test(groups = {"normalization"})
+    public void normalizeTest4(){
+        List<Variable<?>> bound = new ArrayList<>();
+        bound.add(x);
+        Expression disjunction8 = PropositionalCompound.create(dis1, LogicalOperator.OR, con1);
+        Expression<Boolean> quantified = QuantifierExpression.create(Quantifier.FORALL, bound, disjunction8);
+
+        Expression<Boolean> dnf = NormalizationUtil.normalize(quantified, "dnf");
+
+        System.out.println(quantified);
+        System.out.println(dnf);
     }
 }

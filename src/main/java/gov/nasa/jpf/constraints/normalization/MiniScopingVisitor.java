@@ -205,7 +205,7 @@ public class MiniScopingVisitor extends
                 }
             }
         }
-        //TODO: which case is here?
+        //case: no further miniscoping possible
         return q;
     }
 

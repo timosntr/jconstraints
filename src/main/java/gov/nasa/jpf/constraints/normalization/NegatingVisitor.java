@@ -49,8 +49,8 @@ public class NegatingVisitor extends
         return INSTANCE;
     }
 
-    int countLogicalNegations = 0;
-    int countAllNegationPushs = 0;
+    private int countLogicalNegations = 0;
+    private int countAllNegationPushs = 0;
 
     @Override
     public Expression<?> visit(NumericBooleanExpression expr, Boolean shouldNegate){
@@ -83,23 +83,20 @@ public class NegatingVisitor extends
             //otherwise not only the operator has to be inverted but also the children have to bei negated
             if(operator.equals(LogicalOperator.EQUIV) || operator.equals(LogicalOperator.XOR)){
                 newLeft = (Expression<Boolean>) visit(left, false);
+                newRight = (Expression<Boolean>) visit(right, false);
             } else {
                 if(left.getType().equals(BuiltinTypes.BOOL)) {
                     newLeft = (Expression<Boolean>) visit(Negation.create(left), false);
                 } else {
                     newLeft = (Expression<Boolean>) visit(left, false);
                 }
-            }
-            if(operator.equals(LogicalOperator.EQUIV) || operator.equals(LogicalOperator.XOR)) {
-                newRight = (Expression<Boolean>) visit(right, false);
-            } else {
                 if(right.getType().equals(BuiltinTypes.BOOL)) {
                     newRight = (Expression<Boolean>) visit(Negation.create(right), false);
                 } else {
                     newRight = (Expression<Boolean>) visit(right, false);
                 }
             }
-            countLogicalNegations++;
+
             countAllNegationPushs++;
             return PropositionalCompound.create(newLeft, negOperator, newRight);
 
@@ -310,11 +307,19 @@ public class NegatingVisitor extends
         return visit(expr, shouldNegate).requireAs(expr.getType());
     }
 
-    public int[] countNegationSteps(Expression expr){
+    public int getCountLogicalNegations(){
+        return countLogicalNegations;
+    }
+
+    public int getcountAllNegationPushs(){
+        return countAllNegationPushs;
+    }
+
+    /*public int[] countNegationSteps(Expression expr){
         apply(expr, false);
         int[] counter = new int[2];
         counter[0] = countLogicalNegations;
         counter[1] = countAllNegationPushs;
         return counter;
-    }
+    }*/
 }

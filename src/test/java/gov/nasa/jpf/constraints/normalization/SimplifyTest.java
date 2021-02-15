@@ -145,7 +145,7 @@ public class SimplifyTest {
     }
 
     @Test(groups = {"normalization"})
-    //TODO: either tests 10 and 9 (if not simplified twice) or test 11 fail
+    //TODO: either test 9 (if not simplified twice) or test 11 fail
     public void duplicatesTest9(){
         Expression simplified1 = NormalizationUtil.simplifyProblem(ExpressionUtil.and(
                 ExpressionUtil.or(e2, e3, e3, e2),
@@ -159,7 +159,7 @@ public class SimplifyTest {
     }
 
     @Test(groups = {"normalization"})
-    //TODO: either tests 10 and 9 (if not simplified twice) or test 11 fail
+    //TODO: either test 9 (if not simplified twice) or test 11 fail
     public void duplicatesTest10(){
         Expression simplified1 = NormalizationUtil.simplifyProblem(ExpressionUtil.and(
                 ExpressionUtil.and(e2, e3, e3, e2),
@@ -169,7 +169,7 @@ public class SimplifyTest {
 
         Expression expected = ExpressionUtil.and(e2, e3);
 
-        assertEquals(simplified2, expected);
+        assertEquals(simplified1, expected);
     }
 
     @Test(groups = {"normalization"})
@@ -179,7 +179,7 @@ public class SimplifyTest {
                 ExpressionUtil.and(e2, e3),
                 ExpressionUtil.and(e1, e2, e3)));
 
-        Expression expected = ExpressionUtil.and(ExpressionUtil.and(e2, e3), e1);
+        Expression expected = ExpressionUtil.and(e2, e3, e1);
 
         assertEquals(simplified, expected);
     }

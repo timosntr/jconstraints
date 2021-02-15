@@ -69,14 +69,15 @@ public class NormalizationUtil {
         }
     }
 
+    //TODO: order first after all removers?
     public static <E> Expression<E> createNNF(Expression<E> e) {
         //LetExpressions have to be flattened to get children
         Expression noLet = eliminateLetExpressions(e);
-        //TODO: check
-        Expression simplified = simplifyProblem(noLet);
-        Expression ordered = orderProblem(simplified);
+        //TODO: find errors
+        //Expression simplified = simplifyProblem(noLet);
+        //Expression ordered = orderProblem(simplified);
 
-        Expression noEquivalence = eliminateEquivalence(ordered);
+        Expression noEquivalence = eliminateEquivalence(noLet);
         Expression noImplication = eliminateImplication(noEquivalence);
         Expression noXOR = eliminateXOR(noImplication);
         Expression noIte = eliminateIfThenElse(noXOR);
@@ -87,14 +88,15 @@ public class NormalizationUtil {
         return NegatingVisitor.getInstance().apply(e, false);
     }
 
+    //TODO: order first after all removers?
     public static <E> Expression<E> pushNegationModified(Expression<E> e) {
         //LetExpressions have to be flattened to get children
         Expression noLet = eliminateLetExpressions(e);
-        //TODO: check
-        Expression simplified = simplifyProblem(noLet);
-        Expression ordered = orderProblem(simplified);
+        //TODO: find errors
+        //Expression simplified = simplifyProblem(noLet);
+        //Expression ordered = orderProblem(simplified);
 
-        Expression noEquivalence = eliminateEquivalence(ordered);
+        Expression noEquivalence = eliminateEquivalence(noLet);
         Expression noImplication = eliminateImplication(noEquivalence);
         Expression noXOR = eliminateXOR(noImplication);
         Expression noIte = eliminateIfThenElse(noXOR);
@@ -690,8 +692,11 @@ public class NormalizationUtil {
         Expression noImplication = eliminateImplication(noEquivalence);
         Expression noXOR = eliminateXOR(noImplication);
         Expression noIte = eliminateIfThenElse(noXOR);
-        int[] arr =  NegatingVisitor.getInstance().countNegationSteps(noIte);
-        int countNumBoolNegations = arr[0];
+        NegatingVisitor n = new NegatingVisitor();
+        n.apply(noIte, false);
+        int countNumBoolNegations = n.getCountLogicalNegations();
+        /*int[] arr =  n.countNegationSteps(noIte);
+        int countNumBoolNegations = arr[0];*/
         return countNumBoolNegations;
     }
 
@@ -702,8 +707,11 @@ public class NormalizationUtil {
         Expression noImplication = eliminateImplication(noEquivalence);
         Expression noXOR = eliminateXOR(noImplication);
         Expression noIte = eliminateIfThenElse(noXOR);
-        int[] arr =  NegatingVisitor.getInstance().countNegationSteps(noIte);
-        int countAllNegationPushs = arr[1];
+        NegatingVisitor n = new NegatingVisitor();
+        n.apply(noIte, false);
+        int countAllNegationPushs = n.getcountAllNegationPushs();
+        /*int[] arr =  n.countNegationSteps(noIte);
+        int countAllNegationPushs = arr[1];*/
         return countAllNegationPushs;
     }
 
@@ -717,7 +725,8 @@ public class NormalizationUtil {
             Expression beforeSkolemization;
             if (checkForExists(renamed)) {
                 beforeSkolemization = miniScope(renamed);
-                countMiniScopingSteps =  MiniScopingVisitor.getInstance().countMiniScopeSteps(beforeSkolemization);
+                MiniScopingVisitor m = new MiniScopingVisitor();
+                countMiniScopingSteps =  m.countMiniScopeSteps(beforeSkolemization);
             }
         }
         return countMiniScopingSteps;
@@ -733,21 +742,23 @@ public class NormalizationUtil {
             Expression beforeSkolemization;
             if (checkForExists(renamed)) {
                 beforeSkolemization = miniScope(renamed);
-                operatorTransformations =  MiniScopingVisitor.getInstance().countMiniScopeOperatorTransformations(beforeSkolemization);
+                MiniScopingVisitor m = new MiniScopingVisitor();
+                operatorTransformations =  m.countMiniScopeOperatorTransformations(beforeSkolemization);
             }
         }
         return operatorTransformations;
     }
 
 
-    /*public static int countCNFSteps(Expression e) {
+    public static int countCNFSteps(Expression e) {
         //make sure, that the same transformation as in reality is transformed
         Expression nnf = createNNF(e);
-        int countCNFSteps =  ConjunctionCreatorVisitor.getInstance().countCNFSteps(nnf);
+        ConjunctionCreatorVisitor c = new ConjunctionCreatorVisitor();
+        int countCNFSteps =  c.countCNFSteps(nnf);
         return countCNFSteps;
-    }*/
+    }
 
-    /*public static int countCNFStepsInMatrix(Expression e) {
+    public static int countCNFStepsInMatrix(Expression e) {
         //make sure, that the same transformation as in reality is transformed
         Expression nnf = createNNF(e);
         Expression renamed = renameAllBoundVars(nnf);
@@ -762,17 +773,20 @@ public class NormalizationUtil {
         Expression prenex = prenexing(skolemized);
         if(prenex instanceof QuantifierExpression){
             Expression body = ((QuantifierExpression) prenex).getBody();
-            int countCNFSteps =  ConjunctionCreatorVisitor.getInstance().countCNFSteps(body);
+            ConjunctionCreatorVisitor c = new ConjunctionCreatorVisitor();
+            int countCNFSteps =  c.countCNFSteps(body);
             return countCNFSteps;
         } else {
-            int countCNFSteps =  ConjunctionCreatorVisitor.getInstance().countCNFSteps(prenex);
+            ConjunctionCreatorVisitor c = new ConjunctionCreatorVisitor();
+            int countCNFSteps = c.countCNFSteps(prenex);
             return countCNFSteps;
         }
-    }*/
+    }
 
     public static int countDNFSteps(Expression e) {
         Expression nnf = createNNF(e);
-        int countDNFSteps =  DisjunctionCreatorVisitor.getInstance().countDNFSteps(nnf);
+        DisjunctionCreatorVisitor d = new DisjunctionCreatorVisitor();
+        int countDNFSteps =  d.countDNFSteps(nnf);
         return countDNFSteps;
     }
 }
