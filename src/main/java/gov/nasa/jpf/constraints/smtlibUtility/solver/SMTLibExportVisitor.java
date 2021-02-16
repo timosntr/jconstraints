@@ -1,26 +1,22 @@
-/**
- * Copyright 2020, TU Dortmund, Malte Mues (@mmuesly)
+/*
+ * Copyright 2015 United States Government, as represented by the Administrator
+ *                of the National Aeronautics and Space Administration. All Rights Reserved.
+ *           2017-2021 The jConstraints Authors
+ * SPDX-License-Identifier: Apache-2.0
  *
- * <p>This is a derived version of JConstraints original located at:
- * https://github.com/psycopaths/jconstraints
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * <p>Until commit: https://github.com/tudo-aqua/jconstraints/commit/876e377 the original license
- * is: Copyright (C) 2015, United States Government, as represented by the Administrator of the
- * National Aeronautics and Space Administration. All rights reserved.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * <p>The PSYCO: A Predicate-based Symbolic Compositional Reasoning environment platform is licensed
- * under the Apache License, Version 2.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://www.apache.org/licenses/LICENSE-2.0.
- *
- * <p>Unless required by applicable law or agreed to in writing, software distributed under the
- * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied. See the License for the specific language governing permissions and
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * <p>Modifications and new contributions are Copyright by TU Dortmund 2020, Malte Mues under Apache
- * 2.0 in alignment with the original repository license.
  */
+
 package gov.nasa.jpf.constraints.smtlibUtility.solver;
 
 import gov.nasa.jpf.constraints.api.Expression;
@@ -280,7 +276,7 @@ public class SMTLibExportVisitor extends AbstractExpressionVisitor<Void, Void> {
       case OPTIONAL:
         return "re.opt";
       case STRTORE:
-        return "str.to_re";
+        return "str.to.re";
       case ALLCHAR:
         return "re.allchar";
       case ALL:
@@ -297,39 +293,43 @@ public class SMTLibExportVisitor extends AbstractExpressionVisitor<Void, Void> {
   @Override
   public Void visit(RegexOperatorExpression n, Void data) {
     String operator = regexOp(n.getOperator());
-    ctx.open(operator);
-    switch (n.getOperator()) {
-      case KLEENESTAR:
-        visit(n.getLeft(), data);
-        break;
-      case KLEENEPLUS:
-        visit(n.getLeft(), data);
-        break;
-      case LOOP:
-        throw new UnsupportedOperationException("");
-      case RANGE:
-        ctx.append("\"" + n.getCh1() + "\"");
-        ctx.append("\"" + n.getCh2() + "\"");
-        break;
-      case OPTIONAL:
-        visit(n.getLeft(), data);
-        break;
-      case STRTORE:
-        ctx.append("\"" + n.getS() + "\"");
-        break;
-      case ALLCHAR:
-        break;
-      case ALL:
-        throw new UnsupportedOperationException();
-      case COMPLEMENT:
-        visit(n.getLeft(), data);
-        break;
-      case NOSTR:
-        break;
-      default:
-        throw new UnsupportedOperationException();
+    if (n.getOperator().equals(RegExOperator.ALLCHAR)) {
+      ctx.append(operator);
+    } else {
+      ctx.open(operator);
+      switch (n.getOperator()) {
+        case KLEENESTAR:
+          visit(n.getLeft(), data);
+          break;
+        case KLEENEPLUS:
+          visit(n.getLeft(), data);
+          break;
+        case LOOP:
+          throw new UnsupportedOperationException("");
+        case RANGE:
+          ctx.append("\"" + n.getCh1() + "\"");
+          ctx.append("\"" + n.getCh2() + "\"");
+          break;
+        case OPTIONAL:
+          visit(n.getLeft(), data);
+          break;
+        case STRTORE:
+          ctx.append("\"" + n.getS() + "\"");
+          break;
+        case ALLCHAR:
+          break;
+        case ALL:
+          throw new UnsupportedOperationException();
+        case COMPLEMENT:
+          visit(n.getLeft(), data);
+          break;
+        case NOSTR:
+          break;
+        default:
+          throw new UnsupportedOperationException();
+      }
+      ctx.close();
     }
-    ctx.close();
     return null;
   }
 
@@ -528,19 +528,8 @@ public class SMTLibExportVisitor extends AbstractExpressionVisitor<Void, Void> {
   /* Below this line should only be private casting methods
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
   private Void castIntegerSINTX(CastExpression cast, int bits) {
-    ctx.open("ite");
-    ctx.open("<");
+    ctx.open(String.format("(_ int2bv %d)", bits));
     visit(cast.getCasted());
-    visit(Constant.create(BuiltinTypes.INTEGER, BigInteger.valueOf(0)));
-    ctx.close();
-    ctx.open("bvneg");
-    ctx.open(String.format("(_ nat2bv %d)", bits));
-    visit(cast.getCasted());
-    ctx.close();
-    ctx.close();
-    ctx.open(String.format("(_ nat2bv %d)", bits));
-    visit(cast.getCasted());
-    ctx.close();
     ctx.close();
     return null;
   }

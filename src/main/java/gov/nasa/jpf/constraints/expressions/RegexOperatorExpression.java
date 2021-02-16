@@ -1,26 +1,22 @@
-/**
- * Copyright 2020, TU Dortmund, Malte Mues (@mmuesly)
+/*
+ * Copyright 2015 United States Government, as represented by the Administrator
+ *                of the National Aeronautics and Space Administration. All Rights Reserved.
+ *           2017-2021 The jConstraints Authors
+ * SPDX-License-Identifier: Apache-2.0
  *
- * <p>This is a derived version of JConstraints original located at:
- * https://github.com/psycopaths/jconstraints
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * <p>Until commit: https://github.com/tudo-aqua/jconstraints/commit/876e377 the original license
- * is: Copyright (C) 2015, United States Government, as represented by the Administrator of the
- * National Aeronautics and Space Administration. All rights reserved.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * <p>The PSYCO: A Predicate-based Symbolic Compositional Reasoning environment platform is licensed
- * under the Apache License, Version 2.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://www.apache.org/licenses/LICENSE-2.0.
- *
- * <p>Unless required by applicable law or agreed to in writing, software distributed under the
- * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied. See the License for the specific language governing permissions and
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * <p>Modifications and new contributions are Copyright by TU Dortmund 2020, Malte Mues under Apache
- * 2.0 in alignment with the original repository license.
  */
+
 package gov.nasa.jpf.constraints.expressions;
 
 import gov.nasa.jpf.constraints.api.Expression;
@@ -29,6 +25,7 @@ import gov.nasa.jpf.constraints.api.Valuation;
 import gov.nasa.jpf.constraints.api.Variable;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.regex.Pattern;
 
 public class RegexOperatorExpression extends AbstractRegExExpression {
 
@@ -79,6 +76,10 @@ public class RegexOperatorExpression extends AbstractRegExExpression {
     return new RegexOperatorExpression(null, RegExOperator.STRTORE, 0, 0, '0', '0', s);
   }
 
+  public static RegexOperatorExpression createStrToRe(Expression expr) {
+    return new RegexOperatorExpression(expr, RegExOperator.STRTORE, 0, 0, '0', '0', null);
+  }
+
   public static RegexOperatorExpression createComplement(Expression left) {
     return new RegexOperatorExpression(left, RegExOperator.COMPLEMENT, 0, 0, '0', '0', null);
   }
@@ -125,80 +126,42 @@ public class RegexOperatorExpression extends AbstractRegExExpression {
 
   @Override
   public String evaluate(Valuation values) {
+    String regex = left != null ? (String) left.evaluate(values) : "";
+    return evaluateOperator(regex);
+  }
+
+  @Override
+  public String evaluateSMT(Valuation values) {
+    String regex = left != null ? (String) left.evaluateSMT(values) : "";
+    return evaluateOperator(regex);
+  }
+
+  private String evaluateOperator(String regex) {
     switch (operator) {
       case ALL:
-        return evaluateAll(values);
+        return "(.*)";
       case ALLCHAR:
-        return evaluateAllChar(values);
+        return "(.)";
       case KLEENEPLUS:
-        return evaluateKleenePlus(values);
+        return "(" + regex + ")+";
       case KLEENESTAR:
-        return evaluateKleeneStar(values);
+        return "(" + regex + ")*";
       case LOOP:
-        return evaluateLoop(values);
+        return "(" + regex + "){" + low + "," + high + "}";
       case NOSTR:
-        return evaluateNoChar(values);
+        return "(^.*)";
       case OPTIONAL:
-        return evaluateOptional(values);
+        return "(" + regex + ")?";
       case RANGE:
-        return evaluateRange(values);
+        return "[" + ch1 + "-" + ch2 + "]";
       case STRTORE:
-        return evaluateStrToRe(values);
+        String content = s != null ? s : regex;
+        return Pattern.quote(content);
       case COMPLEMENT:
-        return evaluateComplement(values);
+        throw new UnsupportedOperationException("semantic?");
       default:
         throw new IllegalArgumentException();
     }
-    //		throw new UnsupportedOperationException(this.getClass().getName() + ": evaluate is not
-    // Implemented");
-  }
-
-  private String evaluateComplement(Valuation values) {
-    throw new UnsupportedOperationException("semantic?");
-  }
-
-  private String evaluateAll(Valuation values) {
-    return "(.*)";
-  }
-
-  private String evaluateStrToRe(Valuation values) {
-    return s;
-  }
-
-  private String evaluateRange(Valuation values) {
-
-    String result = "[" + ch1 + "-" + ch2 + "]";
-    return result;
-  }
-
-  private String evaluateOptional(Valuation values) {
-    String regex = (String) left.evaluate(values);
-    String result = "(" + regex + ")?";
-    return result;
-  }
-
-  private String evaluateNoChar(Valuation values) {
-    return "(^.*)";
-  }
-
-  private String evaluateLoop(Valuation values) {
-    String regex = (String) left.evaluate(values);
-    String result = "(" + regex + "){" + low + "," + high + "}";
-    return result;
-  }
-
-  private String evaluateKleeneStar(Valuation values) {
-    String regex = (String) left.evaluate(values);
-    return "(" + regex + ")*";
-  }
-
-  private String evaluateKleenePlus(Valuation values) {
-    String regex = (String) left.evaluate(values);
-    return "(" + regex + ")+";
-  }
-
-  private String evaluateAllChar(Valuation values) {
-    return "(.)";
   }
 
   @Override
@@ -263,7 +226,8 @@ public class RegexOperatorExpression extends AbstractRegExExpression {
         a.append("( " + operator + " " + ch1 + " " + ch2 + ") ");
         break;
       case STRTORE:
-        a.append("(" + operator + " " + s + ") ");
+        String value = s != null ? s : left.toString();
+        a.append("(" + operator + " " + value + ") ");
         break;
       default:
         throw new IllegalArgumentException();

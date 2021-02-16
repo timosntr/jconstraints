@@ -1,26 +1,22 @@
-/**
- * Copyright 2020, TU Dortmund, Malte Mues (@mmuesly)
+/*
+ * Copyright 2015 United States Government, as represented by the Administrator
+ *                of the National Aeronautics and Space Administration. All Rights Reserved.
+ *           2017-2021 The jConstraints Authors
+ * SPDX-License-Identifier: Apache-2.0
  *
- * <p>This is a derived version of JConstraints original located at:
- * https://github.com/psycopaths/jconstraints
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * <p>Until commit: https://github.com/tudo-aqua/jconstraints/commit/876e377 the original license
- * is: Copyright (C) 2015, United States Government, as represented by the Administrator of the
- * National Aeronautics and Space Administration. All rights reserved.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * <p>The PSYCO: A Predicate-based Symbolic Compositional Reasoning environment platform is licensed
- * under the Apache License, Version 2.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://www.apache.org/licenses/LICENSE-2.0.
- *
- * <p>Unless required by applicable law or agreed to in writing, software distributed under the
- * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied. See the License for the specific language governing permissions and
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * <p>Modifications and new contributions are Copyright by TU Dortmund 2020, Malte Mues under Apache
- * 2.0 in alignment with the original repository license.
  */
+
 package gov.nasa.jpf.constraints.expressions;
 
 import gov.nasa.jpf.constraints.api.Expression;
@@ -130,6 +126,28 @@ public class StringCompoundExpression extends AbstractStringExpression {
     }
   }
 
+  @Override
+  public String evaluateSMT(Valuation values) {
+    switch (operator) {
+      case AT:
+        return evaluateAtSMT(values);
+      case CONCAT:
+        return evaluateConcatSMT(values);
+      case REPLACE:
+        return evaluateReplaceSMT(values);
+      case SUBSTR:
+        return evaluateSubstringSMT(values);
+      case TOSTR:
+        return evaluateToStringSMT(values);
+      case TOLOWERCASE:
+        return evaluateToLowerSMT(values);
+      case TOUPPERCASE:
+        return evaluateToUpperSMT(values);
+      default:
+        throw new IllegalArgumentException();
+    }
+  }
+
   private String evaluateAt(Valuation values) {
     String string = (String) main.evaluate(values);
     BigInteger pos = (BigInteger) position.evaluate(values);
@@ -170,6 +188,57 @@ public class StringCompoundExpression extends AbstractStringExpression {
 
   private String evaluateToUpper(Valuation values) {
     String eval = (String) main.evaluate(values);
+    return eval.toUpperCase();
+  }
+
+  private String evaluateAtSMT(Valuation values) {
+    try {
+      String string = (String) main.evaluateSMT(values);
+      BigInteger pos = (BigInteger) position.evaluateSMT(values);
+      return String.valueOf(string.charAt(pos.intValue()));
+    } catch (StringIndexOutOfBoundsException e) {
+      return "";
+    }
+  }
+
+  private String evaluateReplaceSMT(Valuation values) {
+    String string = (String) main.evaluateSMT(values);
+    String source = (String) src.evaluateSMT(values);
+    String destination = (String) dst.evaluateSMT(values);
+    return string.replace(source, destination);
+  }
+
+  private String evaluateSubstringSMT(Valuation values) {
+    try {
+      String string = (String) main.evaluateSMT(values);
+      BigInteger of = (BigInteger) offset.evaluateSMT(values);
+      BigInteger len = (BigInteger) length.evaluateSMT(values);
+      return string.substring(of.intValue(), of.intValue() + len.intValue());
+    } catch (StringIndexOutOfBoundsException e) {
+      return "";
+    }
+  }
+
+  private String evaluateToStringSMT(Valuation values) {
+    BigInteger toStr = (BigInteger) main.evaluateSMT(values);
+    return String.valueOf(toStr.intValue());
+  }
+
+  private String evaluateConcatSMT(Valuation values) {
+    String concatString = "";
+    for (Expression<?> e : expressions) {
+      concatString += (String) e.evaluateSMT(values);
+    }
+    return concatString;
+  }
+
+  private String evaluateToLowerSMT(Valuation values) {
+    String eval = (String) main.evaluateSMT(values);
+    return eval.toLowerCase();
+  }
+
+  private String evaluateToUpperSMT(Valuation values) {
+    String eval = (String) main.evaluateSMT(values);
     return eval.toUpperCase();
   }
 

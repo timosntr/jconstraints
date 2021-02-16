@@ -1,26 +1,22 @@
-/**
- * Copyright 2020, TU Dortmund, Malte Mues (@mmuesly)
+/*
+ * Copyright 2015 United States Government, as represented by the Administrator
+ *                of the National Aeronautics and Space Administration. All Rights Reserved.
+ *           2017-2021 The jConstraints Authors
+ * SPDX-License-Identifier: Apache-2.0
  *
- * <p>This is a derived version of JConstraints original located at:
- * https://github.com/psycopaths/jconstraints
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * <p>Until commit: https://github.com/tudo-aqua/jconstraints/commit/876e377 the original license
- * is: Copyright (C) 2015, United States Government, as represented by the Administrator of the
- * National Aeronautics and Space Administration. All rights reserved.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * <p>The PSYCO: A Predicate-based Symbolic Compositional Reasoning environment platform is licensed
- * under the Apache License, Version 2.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://www.apache.org/licenses/LICENSE-2.0.
- *
- * <p>Unless required by applicable law or agreed to in writing, software distributed under the
- * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied. See the License for the specific language governing permissions and
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * <p>Modifications and new contributions are Copyright by TU Dortmund 2020, Malte Mues under Apache
- * 2.0 in alignment with the original repository license.
  */
+
 package gov.nasa.jpf.constraints.expressions;
 
 import gov.nasa.jpf.constraints.api.Expression;
@@ -41,11 +37,17 @@ public class Constant<E> extends AbstractExpression<E> {
 
   private final Type<E> type;
   private final E value;
+  private boolean escape;
 
-  public Constant(Type<E> type, E value) {
+  public Constant(Type<E> type, E value, boolean esacped) {
     this.type = type;
     assert this.type.getDefaultValue().getClass().isInstance(value);
     this.value = value;
+    this.escape = esacped;
+  }
+
+  public Constant(Type<E> type, E value) {
+    this(type, value, false);
   }
 
   @Deprecated
@@ -55,6 +57,10 @@ public class Constant<E> extends AbstractExpression<E> {
 
   public static <E> Constant<E> create(Type<E> type, E value) {
     return new Constant<E>(type, value);
+  }
+
+  public static <E> Constant<E> create(Type<E> type, E value, boolean escape) {
+    return new Constant<E>(type, value, escape);
   }
 
   public static <E> Constant<E> createParsed(Type<E> type, String txt)
@@ -77,6 +83,11 @@ public class Constant<E> extends AbstractExpression<E> {
   @Override
   public E evaluate(Valuation values) {
     return this.value;
+  }
+
+  @Override
+  public E evaluateSMT(Valuation values) {
+    return evaluate(values);
   }
 
   @Override
@@ -152,5 +163,9 @@ public class Constant<E> extends AbstractExpression<E> {
   @Override
   public <R, D> R accept(ExpressionVisitor<R, D> visitor, D data) {
     return visitor.visit(this, data);
+  }
+
+  public boolean isEscape() {
+    return escape;
   }
 }

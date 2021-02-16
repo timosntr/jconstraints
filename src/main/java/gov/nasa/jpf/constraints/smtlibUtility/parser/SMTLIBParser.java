@@ -23,11 +23,41 @@
  */
 package gov.nasa.jpf.constraints.smtlibUtility.parser;
 
+import static gov.nasa.jpf.constraints.expressions.NumericComparator.EQ;
+
 import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.Variable;
+import gov.nasa.jpf.constraints.expressions.BitvectorExpression;
+import gov.nasa.jpf.constraints.expressions.BitvectorOperator;
+import gov.nasa.jpf.constraints.expressions.CastExpression;
+import gov.nasa.jpf.constraints.expressions.Constant;
+import gov.nasa.jpf.constraints.expressions.ExpressionOperator;
+import gov.nasa.jpf.constraints.expressions.IfThenElse;
+import gov.nasa.jpf.constraints.expressions.LetExpression;
+import gov.nasa.jpf.constraints.expressions.LogicalOperator;
+import gov.nasa.jpf.constraints.expressions.Negation;
+import gov.nasa.jpf.constraints.expressions.NumericBooleanExpression;
+import gov.nasa.jpf.constraints.expressions.NumericComparator;
+import gov.nasa.jpf.constraints.expressions.NumericCompound;
+import gov.nasa.jpf.constraints.expressions.NumericOperator;
+import gov.nasa.jpf.constraints.expressions.PropositionalCompound;
+import gov.nasa.jpf.constraints.expressions.RegExBooleanExpression;
+import gov.nasa.jpf.constraints.expressions.RegExBooleanOperator;
+import gov.nasa.jpf.constraints.expressions.RegExCompoundOperator;
+import gov.nasa.jpf.constraints.expressions.RegExOperator;
+import gov.nasa.jpf.constraints.expressions.RegexCompoundExpression;
+import gov.nasa.jpf.constraints.expressions.RegexOperatorExpression;
+import gov.nasa.jpf.constraints.expressions.StringBooleanExpression;
+import gov.nasa.jpf.constraints.expressions.StringBooleanOperator;
+import gov.nasa.jpf.constraints.expressions.StringCompoundExpression;
+import gov.nasa.jpf.constraints.expressions.StringIntegerExpression;
+import gov.nasa.jpf.constraints.expressions.StringIntegerOperator;
+import gov.nasa.jpf.constraints.expressions.StringOperator;
+import gov.nasa.jpf.constraints.expressions.UnaryMinus;
 import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.smtlibUtility.SMTProblem;
 import gov.nasa.jpf.constraints.types.BuiltinTypes;
+import gov.nasa.jpf.constraints.types.NumericType;
 import gov.nasa.jpf.constraints.types.Type;
 import gov.nasa.jpf.constraints.util.ExpressionUtil;
 import java.io.IOException;
@@ -43,12 +73,17 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
+import org.smtlib.CharSequenceReader;
+import org.smtlib.ICommand;
+import org.smtlib.IExpr;
 import org.smtlib.*;
 import org.smtlib.IExpr.IDecimal;
 import org.smtlib.IExpr.INumeral;
 import org.smtlib.IExpr.IStringLiteral;
 import org.smtlib.IExpr.ISymbol;
+import org.smtlib.IParser;
+import org.smtlib.ISource;
+import org.smtlib.SMT;
 import org.smtlib.command.C_assert;
 import org.smtlib.command.C_check_sat;
 import org.smtlib.command.C_declare_fun;
@@ -58,7 +93,9 @@ import org.smtlib.command.C_set_info;
 import org.smtlib.command.C_set_logic;
 import org.smtlib.command.C_set_option;
 import org.smtlib.impl.SMTExpr.FcnExpr;
+import org.smtlib.impl.SMTExpr.HexLiteral;
 import org.smtlib.impl.SMTExpr.Let;
+import org.smtlib.impl.SMTExpr.ParameterizedIdentifier;
 import org.smtlib.impl.SMTExpr.Symbol;
 import org.smtlib.impl.Sort;
 
@@ -149,14 +186,28 @@ public class SMTLIBParser {
       resolved = processLetExpression((Let) arg);
     } else if (arg instanceof IStringLiteral) {
       resolved = resolveStringLiteral((IStringLiteral) arg);
-    }
-      else if (arg instanceof IExpr.IForall || arg instanceof IExpr.IExists) {
+    } else if (arg instanceof IExpr.IForall || arg instanceof IExpr.IExists) {
       resolved = processQuantifierExpression(arg);
+    } else if (arg instanceof HexLiteral) {
+      resolved = resolveHexLiteral((HexLiteral) arg);
     } else {
       throw new SMTLIBParserNotSupportedException(
           "The arguments type is not supported: " + arg.getClass());
     }
     return successfulArgumentProcessing(resolved, arg);
+  }
+
+  private Constant resolveHexLiteral(HexLiteral arg) {
+    String value = arg.toString().replace("#x", "");
+    if (value.length() == 2) {
+      return Constant.create(BuiltinTypes.SINT8, Byte.parseByte(value, 16));
+    } else if (value.length() == 8) {
+      return Constant.create(BuiltinTypes.SINT32, Integer.parseUnsignedInt(value, 16));
+    } else if (value.length() == 16) {
+      return Constant.create(BuiltinTypes.SINT64, Long.parseUnsignedLong(value, 16));
+    } else {
+      throw new IllegalArgumentException("Wrong byte size in the hex value: #x" + value);
+    }
   }
 
   private Expression processExpression(final IExpr expr) throws SMTLIBParserException {
@@ -260,7 +311,6 @@ public class SMTLIBParser {
     final Queue<Expression> convertedArguments = new LinkedList<>();
     for (final IExpr arg : sExpr.args()) {
       final Expression jExpr = processArgument(arg);
-
       convertedArguments.add(jExpr);
     }
     if (operatorStr.equals("re.loop")) {
@@ -281,6 +331,15 @@ public class SMTLIBParser {
       ret = createNegation(convertedArguments);
     } else if (operatorStr.equals("ite")) {
       ret = createITE(convertedArguments);
+    } else if (operatorStr.equals("int2bv")) {
+      ParameterizedIdentifier pi = (ParameterizedIdentifier) sExpr.head();
+      ret = createCastToBV(convertedArguments, pi.numerals().get(0).intValue());
+    } else if (operatorStr.equals("bv2nat")) {
+      ret = CastExpression.create(convertedArguments.poll(), BuiltinTypes.INTEGER);
+    } else if (operatorStr.equals("distinct")) {
+      ExpressionOperator eo = EQ;
+      ret = createExpression(fixExpressionOperator(eo, convertedArguments), convertedArguments);
+      ret = Negation.create(ret);
     } else {
       final ExpressionOperator operator =
           ExpressionOperator.fromString(
@@ -288,6 +347,20 @@ public class SMTLIBParser {
       ret = createExpression(operator, convertedArguments);
     }
     return ret;
+  }
+
+  private Expression createCastToBV(Queue<Expression> convertedArguments, int bitSize) {
+    if (bitSize == 8) {
+      return CastExpression.create(convertedArguments.poll(), BuiltinTypes.SINT8);
+    } else if (bitSize == 16) {
+      return CastExpression.create(convertedArguments.poll(), BuiltinTypes.SINT16);
+    } else if (bitSize == 32) {
+      return CastExpression.create(convertedArguments.poll(), BuiltinTypes.SINT32);
+    } else if (bitSize == 64) {
+      return CastExpression.create(convertedArguments.poll(), BuiltinTypes.SINT64);
+    } else {
+      throw new IllegalArgumentException("Cannot cast to bitSize: " + bitSize);
+    }
   }
 
   private Negation createNegation(final Queue<Expression> arguments) throws SMTLIBParserException {
@@ -376,6 +449,10 @@ public class SMTLIBParser {
               arguments.poll(), arguments.poll(), arguments.poll());
         case TOSTR:
           return StringCompoundExpression.createToString(arguments.poll());
+        case TOLOWERCASE:
+          return StringCompoundExpression.createToLower(arguments.poll());
+        case TOUPPERCASE:
+          return StringCompoundExpression.createToUpper(arguments.poll());
         default:
           throw new IllegalArgumentException("Unknown StringCompoundOperator");
       }
@@ -384,11 +461,13 @@ public class SMTLIBParser {
         case CONTAINS:
           return StringBooleanExpression.createContains(arguments.poll(), arguments.poll());
         case EQUALS:
-          return StringBooleanExpression.createEquals(arguments.poll(), arguments.poll());
+          return processEquals(arguments.poll(), arguments.poll());
         case PREFIXOF:
-          return StringBooleanExpression.createPrefixOf(arguments.poll(), arguments.poll());
+          Expression prefix = arguments.poll();
+          return StringBooleanExpression.createPrefixOf(arguments.poll(), prefix);
         case SUFFIXOF:
-          return StringBooleanExpression.createPrefixOf(arguments.poll(), arguments.poll());
+          Expression suffix = arguments.poll();
+          return StringBooleanExpression.createSuffixOf(arguments.poll(), suffix);
         default:
           throw new IllegalArgumentException("Unknown StringBooleanOperator: " + newOperator);
       }
@@ -440,28 +519,13 @@ public class SMTLIBParser {
           char high = h.charAt(0);
           return RegexOperatorExpression.createRange(low, high);
         case STRTORE:
-          Constant expr = (Constant) arguments.poll();
-          return RegexOperatorExpression.createStrToRe((String) expr.getValue());
+          Expression e = arguments.poll();
+          return RegexOperatorExpression.createStrToRe(e);
         default:
           throw new UnsupportedOperationException("Unknown RegexOperator: " + newOperator);
       }
     } else if (newOperator instanceof RegExCompoundOperator) {
-      switch ((RegExCompoundOperator) newOperator) {
-        case CONCAT:
-          Expression<?> tmpexpr[] = new Expression<?>[arguments.size()];
-          tmpexpr[0] = arguments.poll();
-          tmpexpr[1] = arguments.poll();
-          for (int i = 2; i < tmpexpr.length; i++) {
-            tmpexpr[i] = arguments.poll();
-          }
-          return RegexCompoundExpression.createConcat(tmpexpr);
-        case INTERSECTION:
-          return RegexCompoundExpression.createIntersection(arguments.poll(), arguments.poll());
-        case UNION:
-          return RegexCompoundExpression.createUnion(arguments.poll(), arguments.poll());
-        default:
-          throw new UnsupportedOperationException("Unknown RegexCompoundOperator: " + newOperator);
-      }
+      return convertRegExCompundOperator(newOperator, arguments);
     } else if (newOperator instanceof RegExBooleanOperator) {
       switch ((RegExBooleanOperator) newOperator) {
         case STRINRE:
@@ -472,6 +536,44 @@ public class SMTLIBParser {
     } else {
       throw new SMTLIBParserNotSupportedException(
           "Cannot convert the following operator class: " + operator.getClass());
+    }
+  }
+
+  private Expression processEquals(Expression left, Expression right) {
+    if (left.getType().equals(BuiltinTypes.STRING)) {
+      return StringBooleanExpression.createEquals(left, right);
+    } else if (left.getType().equals(BuiltinTypes.BOOL)) {
+      return PropositionalCompound.create(left, LogicalOperator.EQUIV, right);
+    } else if (left.getType() instanceof NumericType) {
+      return NumericBooleanExpression.create(left, EQ, right);
+    } else {
+      throw new IllegalArgumentException(
+          "Unknown StringBooleanOperator arguments: " + left + " " + right);
+    }
+  }
+
+  private Expression convertRegExCompundOperator(
+      ExpressionOperator newOperator, Queue<Expression> arguments) {
+    switch ((RegExCompoundOperator) newOperator) {
+      case CONCAT:
+        Expression<?> tmpexpr[] = new Expression<?>[arguments.size()];
+        tmpexpr[0] = arguments.poll();
+        tmpexpr[1] = arguments.poll();
+        for (int i = 2; i < tmpexpr.length; i++) {
+          tmpexpr[i] = arguments.poll();
+        }
+        return RegexCompoundExpression.createConcat(tmpexpr);
+      case INTERSECTION:
+        return RegexCompoundExpression.createIntersection(arguments.poll(), arguments.poll());
+      case UNION:
+        RegexCompoundExpression rce =
+            RegexCompoundExpression.createUnion(arguments.poll(), arguments.poll());
+        while (!arguments.isEmpty()) {
+          rce = RegexCompoundExpression.createUnion(rce, arguments.poll());
+        }
+        return rce;
+      default:
+        throw new UnsupportedOperationException("Unknown RegexCompoundOperator: " + newOperator);
     }
   }
 
@@ -535,7 +637,8 @@ public class SMTLIBParser {
   }
 
   private Constant resolveStringLiteral(final IStringLiteral stringliteral) {
-    return Constant.create(BuiltinTypes.STRING, stringliteral.value());
+    String value = stringliteral.value();
+    return Constant.create(BuiltinTypes.STRING, value, true);
   }
 
   private Expression resolveSymbol(final ISymbol symbol)
@@ -563,6 +666,10 @@ public class SMTLIBParser {
         return parameter;
       }
     }
+    if (symbol.value().matches("-(\\d)+")) {
+      return Constant.create(BuiltinTypes.INTEGER, new BigInteger(symbol.value()));
+    }
+
     throw new SMTLIBParserExceptionInvalidMethodCall("Cannot parse Symbol: " + symbol);
   }
 
@@ -588,7 +695,7 @@ public class SMTLIBParser {
     final Queue<Expression> tmp = new LinkedList<Expression>(arguments);
     final StringBooleanOperator newOperator = StringBooleanOperator.EQUALS;
 
-    if (operator.equals(NumericComparator.EQ)) {
+    if (operator.equals(EQ)) {
       Expression left = tmp.poll();
       Expression right = tmp.poll();
       if (left instanceof StringBooleanExpression

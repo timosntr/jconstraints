@@ -21,6 +21,7 @@
  * <p>Modifications and new contributions are Copyright by TU Dortmund 2020, Malte Mues under Apache
  * 2.0 in alignment with the original repository license.
  */
+
 package gov.nasa.jpf.constraints.expressions;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -82,58 +83,33 @@ public class StringBooleanExpression extends AbstractBoolExpression {
 
   @Override
   public Boolean evaluate(Valuation values) {
-
-  	switch(operator) {
-
-		  case CONTAINS:
-			  return evaluateContains(left,right,values);
-		  case EQUALS:
-			  return evaluateEquals(left,right,values);
-		  case NOTEQUALS:
-			  return evaluateNotEquals(left,right,values);
-		  case PREFIXOF:
-			  return evaluatePrefixOf(left,right,values);
-		  case SUFFIXOF:
-			  return evaluateSuffixOf(left,right,values);
-		  default:
-			  throw new IllegalArgumentException();
-
-	  }
-  }
-
-  private Boolean evaluateSuffixOf(Expression<?> left, Expression<?> right, Valuation values) {
     String lv = (String) left.evaluate(values);
     String rv = (String) right.evaluate(values);
-    return lv.endsWith(rv);
+    return makeComparison(lv, rv);
   }
 
-  private <L, R> Boolean evaluatePrefixOf(
-      Expression<L> left, Expression<R> right, Valuation values) {
-    String lv = (String) left.evaluate(values);
-    String rv = (String) right.evaluate(values);
-    return lv.startsWith(rv);
+  @Override
+  public Boolean evaluateSMT(Valuation values) {
+    String lv = (String) left.evaluateSMT(values);
+    String rv = (String) right.evaluateSMT(values);
+    return makeComparison(lv, rv);
   }
 
-  private <L, R> Boolean evaluateContains(
-      Expression<L> left, Expression<R> right, Valuation values) {
-    String lv = (String) left.evaluate(values);
-    String rv = (String) right.evaluate(values);
-    return lv.contains(rv);
-  }
-
-  @SuppressWarnings("unlikely-arg-type")
-  private <L, R> Boolean evaluateEquals(Expression<L> left, Expression<R> right, Valuation values) {
-
-    L lv = left.evaluate(values);
-    R rv = right.evaluate(values);
-    return lv.equals(rv);
-  }
-
-  private  <L, R> Boolean evaluateNotEquals(Expression<L> left, Expression<R> right,Valuation values) {
-
-  	L lv = left.evaluate(values);
-  	R rv = right.evaluate(values);
-  	return ! lv.equals(rv);
+  private Boolean makeComparison(String left, String right) {
+    switch (operator) {
+      case CONTAINS:
+        return left.contains(right);
+      case EQUALS:
+        return left.equals(right);
+      case NOTEQUALS:
+        return !left.equals(right);
+      case PREFIXOF:
+        return left.startsWith(right);
+      case SUFFIXOF:
+        return left.endsWith(right);
+      default:
+        throw new IllegalArgumentException();
+    }
   }
 
   @Override

@@ -1,26 +1,22 @@
-/**
- * Copyright 2020, TU Dortmund, Malte Mues (@mmuesly)
+/*
+ * Copyright 2015 United States Government, as represented by the Administrator
+ *                of the National Aeronautics and Space Administration. All Rights Reserved.
+ *           2017-2021 The jConstraints Authors
+ * SPDX-License-Identifier: Apache-2.0
  *
- * <p>This is a derived version of JConstraints original located at:
- * https://github.com/psycopaths/jconstraints
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * <p>Until commit: https://github.com/tudo-aqua/jconstraints/commit/876e377 the original license
- * is: Copyright (C) 2015, United States Government, as represented by the Administrator of the
- * National Aeronautics and Space Administration. All rights reserved.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * <p>The PSYCO: A Predicate-based Symbolic Compositional Reasoning environment platform is licensed
- * under the Apache License, Version 2.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://www.apache.org/licenses/LICENSE-2.0.
- *
- * <p>Unless required by applicable law or agreed to in writing, software distributed under the
- * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied. See the License for the specific language governing permissions and
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * <p>Modifications and new contributions are Copyright by TU Dortmund 2020, Malte Mues under Apache
- * 2.0 in alignment with the original repository license.
  */
+
 package gov.nasa.jpf.constraints.solvers.encapsulation;
 
 import gov.nasa.jpf.constraints.api.ConstraintSolver;
@@ -49,6 +45,8 @@ public class ProcessWrapperSolver extends ConstraintSolver {
   private final String solverName;
   String jconstraintsJar;
   private String jConstraintsExtensionsPath;
+  private static int TIMEOUT = 60;
+  private String javaBinary;
 
   private Process solver;
   private ObjectOutputStream inObject;
@@ -69,13 +67,23 @@ public class ProcessWrapperSolver extends ConstraintSolver {
     for (String s : env) {
       if (s.startsWith("-Djconstraints.extension.path")) {
         jConstraintsExtensionsPath = s;
-        break;
+      }
+      if (s.startsWith("-Djconstraints.wrapper.timeout")) {
+        TIMEOUT = Integer.parseInt(s.split("=")[1]);
       }
     }
 
     jconstraintsJar =
         Objects.requireNonNull(
             new File(".").list((dir, name) -> name.matches("jconstraints(?:.*)jar")))[0];
+    javaBinary = "java";
+  }
+
+  public ProcessWrapperSolver(String solver, String javaBinary) {
+    this(solver);
+    if (!javaBinary.equals("")) {
+      this.javaBinary = javaBinary;
+    }
   }
 
   @Override
@@ -96,7 +104,7 @@ public class ProcessWrapperSolver extends ConstraintSolver {
 
   @Override
   public SolverContext createContext() {
-    return new ProcessWrapperContext(solverName);
+    return new ProcessWrapperContext(solverName, javaBinary);
   }
 
   private Result runSolverProcess(Expression f, Valuation result)
@@ -104,14 +112,16 @@ public class ProcessWrapperSolver extends ConstraintSolver {
     if (solver == null) {
       ProcessBuilder pb = new ProcessBuilder();
       pb.command(
-          "java",
+          javaBinary,
           "-ea",
           "-cp",
           jconstraintsJar,
           jConstraintsExtensionsPath,
           "gov.nasa.jpf.constraints.solvers.encapsulation.SolverRunner",
           "-s",
-          solverName);
+          solverName,
+          "-t",
+          Integer.toString(TIMEOUT));
       solver = pb.start();
       registerShutdown(solver);
 
@@ -128,7 +138,7 @@ public class ProcessWrapperSolver extends ConstraintSolver {
       while (bos.available() == 0 && bes.available() == 0) {
         // Thread.sleep(5);
       }
-      if (!checkBes(bes)) {
+      if (!checkBes(bes, f)) {
         if (outObject == null) {
           outObject = new ObjectInputStream(bos);
         }
@@ -137,7 +147,7 @@ public class ProcessWrapperSolver extends ConstraintSolver {
       while (bos.available() == 0 && bes.available() == 0) {
         Thread.sleep(1);
       }
-      if (!checkBes(bes)) {
+      if (!checkBes(bes, f)) {
         Object done = outObject.readObject();
         if (done instanceof StopSolvingMessage) {
           Object o = outObject.readObject();
@@ -167,9 +177,11 @@ public class ProcessWrapperSolver extends ConstraintSolver {
             new Thread(
                 () -> {
                   try {
-                    System.out.println("Shutdown hock");
                     if (solver.isAlive()) {
-                      inObject.writeObject(new StopSolvingMessage());
+                      StopSolvingMessage ssm = new StopSolvingMessage();
+                      ObjectOutputStream os = new ObjectOutputStream(solver.getOutputStream());
+                      os.writeObject(ssm);
+                      os.flush();
                     }
                   } catch (IOException e) {
                     e.printStackTrace();
@@ -178,20 +190,25 @@ public class ProcessWrapperSolver extends ConstraintSolver {
                 }));
   }
 
-  private boolean checkBes(BufferedInputStream bes) throws IOException, ClassNotFoundException {
+  private boolean checkBes(BufferedInputStream bes, Object f) throws IOException {
     if (bes.available() > 0) {
       ObjectInputStream errObject = new ObjectInputStream(bes);
-      Object err = errObject.readObject();
-      Exception e = (Exception) err;
-      e.printStackTrace();
+      try {
+        Object err = errObject.readObject();
+        Exception e = (Exception) err;
+        e.printStackTrace();
+      } catch (ClassNotFoundException e) {
+        System.out.println("f: " + f);
+        logCallToSolver(f);
+      }
       throw new IOException();
     }
     return false;
   }
 
-  private void logCallToSolver(Expression f) {
-    try (FileOutputStream fo =
-        new FileOutputStream("/tmp/serialized_" + solverName + Long.toString(System.nanoTime()))) {
+  private void logCallToSolver(Object f) {
+    String fileName = "/tmp/serialized_" + solverName + Long.toString(System.nanoTime());
+    try (FileOutputStream fo = new FileOutputStream(fileName)) {
       ObjectOutputStream oo = new ObjectOutputStream(fo);
       oo.writeObject(f);
     } catch (FileNotFoundException e) {
@@ -199,6 +216,7 @@ public class ProcessWrapperSolver extends ConstraintSolver {
     } catch (IOException e) {
       e.printStackTrace();
     }
+    System.out.println("Logged an Object to: " + fileName);
   }
 
   @Override

@@ -1,32 +1,29 @@
-/**
- * Copyright 2020, TU Dortmund, Malte Mues (@mmuesly)
+/*
+ * Copyright 2015 United States Government, as represented by the Administrator
+ *                of the National Aeronautics and Space Administration. All Rights Reserved.
+ *           2017-2021 The jConstraints Authors
+ * SPDX-License-Identifier: Apache-2.0
  *
- * <p>This is a derived version of JConstraints original located at:
- * https://github.com/psycopaths/jconstraints
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * <p>Until commit: https://github.com/tudo-aqua/jconstraints/commit/876e377 the original license
- * is: Copyright (C) 2015, United States Government, as represented by the Administrator of the
- * National Aeronautics and Space Administration. All rights reserved.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * <p>The PSYCO: A Predicate-based Symbolic Compositional Reasoning environment platform is licensed
- * under the Apache License, Version 2.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://www.apache.org/licenses/LICENSE-2.0.
- *
- * <p>Unless required by applicable law or agreed to in writing, software distributed under the
- * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied. See the License for the specific language governing permissions and
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * <p>Modifications and new contributions are Copyright by TU Dortmund 2020, Malte Mues under Apache
- * 2.0 in alignment with the original repository license.
  */
+
 package gov.nasa.jpf.constraints.expressions;
 
 import gov.nasa.jpf.constraints.api.Expression;
 import gov.nasa.jpf.constraints.api.ExpressionVisitor;
 import gov.nasa.jpf.constraints.api.Valuation;
 import gov.nasa.jpf.constraints.api.Variable;
+import gov.nasa.jpf.constraints.types.BuiltinTypes;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -40,14 +37,14 @@ public class StringIntegerExpression extends AbstractStringIntegerExpression {
   private final Expression<?> right;
   private final Expression<?> offset;
 
-  public StringIntegerExpression(Expression<?> left, StringIntegerOperator operator) {
+  private StringIntegerExpression(Expression<?> left, StringIntegerOperator operator) {
     this.left = left;
     this.right = null;
     this.operator = operator;
     this.offset = null;
   }
 
-  public StringIntegerExpression(
+  private StringIntegerExpression(
       Expression<?> left,
       StringIntegerOperator operator,
       Expression<?> right,
@@ -68,11 +65,18 @@ public class StringIntegerExpression extends AbstractStringIntegerExpression {
 
   public static StringIntegerExpression createIndexOf(
       Expression<?> left, Expression<?> right, Expression<?> offset) {
+    if (offset == null) {
+      return createIndexOf(left, right);
+    }
     return new StringIntegerExpression(left, StringIntegerOperator.INDEXOF, right, offset);
   }
 
   public static StringIntegerExpression createIndexOf(Expression<?> left, Expression<?> right) {
-    return new StringIntegerExpression(left, StringIntegerOperator.INDEXOF, right, null);
+    return new StringIntegerExpression(
+        left,
+        StringIntegerOperator.INDEXOF,
+        right,
+        Constant.create(BuiltinTypes.INTEGER, BigInteger.ZERO));
   }
 
   public Expression<?> getRight() {
@@ -81,35 +85,40 @@ public class StringIntegerExpression extends AbstractStringIntegerExpression {
 
   @Override
   public BigInteger evaluate(Valuation values) {
-
+    String lv = (String) left.evaluate(values);
     switch (operator) {
       case INDEXOF:
-        return evaluateIndexOf(values);
+        String rv = (String) right.evaluate(values);
+        BigInteger of = offset != null ? (BigInteger) offset.evaluate(values) : BigInteger.ZERO;
+        return BigInteger.valueOf(lv.indexOf(rv, of.intValue()));
       case LENGTH:
-        return evaluateLength(values);
+        return BigInteger.valueOf(lv.length());
       case TOINT:
-        return evaluateToInt(values);
+        return BigInteger.valueOf(Integer.valueOf(lv));
       default:
         throw new IllegalArgumentException();
     }
   }
 
-  private BigInteger evaluateToInt(Valuation values) {
-    String lv = (String) left.evaluate(values);
-    return BigInteger.valueOf(Integer.valueOf(lv));
-  }
-
-  private BigInteger evaluateLength(Valuation values) {
-    String string = (String) left.evaluate(values);
-    BigInteger length = BigInteger.valueOf(string.length());
-    return length;
-  }
-
-  private BigInteger evaluateIndexOf(Valuation values) {
-    String lv = (String) left.evaluate(values);
-    String rv = (String) right.evaluate(values);
-    BigInteger of = offset != null ? (BigInteger) offset.evaluate(values) : BigInteger.ZERO;
-    return BigInteger.valueOf(lv.indexOf(rv, of.intValue()));
+  @Override
+  public BigInteger evaluateSMT(Valuation values) {
+    String lv = (String) left.evaluateSMT(values);
+    switch (operator) {
+      case INDEXOF:
+        String rv = (String) right.evaluateSMT(values);
+        BigInteger of = offset != null ? (BigInteger) offset.evaluateSMT(values) : BigInteger.ZERO;
+        int index = lv.indexOf(rv, of.intValue());
+        if (index == -1 && of.intValue() >= 0 && of.intValue() <= lv.length() && rv.equals("")) {
+          index = of.intValue();
+        }
+        return BigInteger.valueOf(index);
+      case LENGTH:
+        return BigInteger.valueOf(lv.length());
+      case TOINT:
+        return BigInteger.valueOf(Integer.valueOf(lv));
+      default:
+        throw new IllegalArgumentException();
+    }
   }
 
   @Override
@@ -163,8 +172,10 @@ public class StringIntegerExpression extends AbstractStringIntegerExpression {
     switch (operator) {
       case INDEXOF:
         left.print(a, flags);
+        a.append(" ");
         right.print(a, flags);
         if (offset != null) {
+          a.append(" ");
           offset.print(a, flags);
         }
         break;
