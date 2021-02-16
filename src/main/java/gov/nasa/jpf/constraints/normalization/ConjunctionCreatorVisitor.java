@@ -43,6 +43,119 @@ public class ConjunctionCreatorVisitor extends
 
     int countCNFSteps;
 
+    //todo: helper to reduce recursion
+    public Expression<?> pushDisjunction(Expression expr){
+        if(!(expr instanceof PropositionalCompound)){
+            return expr;
+        }
+        Expression leftChild = ((PropositionalCompound) expr).getLeft();
+        Expression rightChild = ((PropositionalCompound) expr).getRight();
+        LogicalOperator operator = ((PropositionalCompound) expr).getOperator();
+
+        boolean operatorIsOR = operator.equals(LogicalOperator.OR);
+        boolean operatorIsAND = operator.equals(LogicalOperator.AND);
+        boolean leftIsPropComp = leftChild instanceof PropositionalCompound;
+        boolean rightIsPropComp = rightChild instanceof PropositionalCompound;
+        if(operatorIsAND){
+            return expr;
+        }
+        if(operatorIsOR && leftIsPropComp && rightIsPropComp){
+            boolean leftOpIsOR = ((PropositionalCompound) leftChild).getOperator().equals(LogicalOperator.OR);
+            boolean leftOpIsAND = ((PropositionalCompound) leftChild).getOperator().equals(LogicalOperator.AND);
+            boolean rightOpIsOR = ((PropositionalCompound) rightChild).getOperator().equals(LogicalOperator.OR);
+            boolean rightOpIsAND = ((PropositionalCompound) rightChild).getOperator().equals(LogicalOperator.AND);
+
+            Expression leftLeft = ((PropositionalCompound) leftChild).getLeft();
+            Expression leftRight = ((PropositionalCompound) leftChild).getRight();
+            Expression rightLeft = ((PropositionalCompound) rightChild).getLeft();
+            Expression rightRight = ((PropositionalCompound) rightChild).getRight();
+
+            if (leftOpIsAND && rightOpIsAND) {
+                //case: (A AND B) OR (C AND D)
+                countCNFSteps++;
+                Expression result = PropositionalCompound.create(
+                        PropositionalCompound.create(
+                                (Expression<Boolean>) pushDisjunction(PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightLeft)),
+                                LogicalOperator.AND,
+                                pushDisjunction(PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightRight))),
+                        LogicalOperator.AND,
+                        PropositionalCompound.create(
+                                (Expression<Boolean>) pushDisjunction(PropositionalCompound.create(leftRight, LogicalOperator.OR, rightLeft)),
+                                LogicalOperator.AND,
+                                pushDisjunction(PropositionalCompound.create(leftRight, LogicalOperator.OR, rightRight))));
+                return result;
+
+            } else if (leftOpIsAND && rightOpIsOR) {
+                //case: (A AND B) OR (C OR D)
+                countCNFSteps++;
+                Expression result = PropositionalCompound.create(
+                        (Expression<Boolean>) pushDisjunction(PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightChild)),
+                        LogicalOperator.AND,
+                        pushDisjunction(PropositionalCompound.create(leftRight, LogicalOperator.OR, rightChild)));
+                return result;
+
+            } else if (leftOpIsOR && rightOpIsAND) {
+                //case: (A OR B) OR (C AND D)
+                countCNFSteps++;
+                Expression result = PropositionalCompound.create(
+                        (Expression<Boolean>) pushDisjunction(PropositionalCompound.create(leftChild, LogicalOperator.OR, rightLeft)),
+                        LogicalOperator.AND,
+                        pushDisjunction(PropositionalCompound.create(leftChild, LogicalOperator.OR, rightRight)));
+                return result;
+
+            } else if (leftOpIsOR && rightOpIsOR) {
+                //case: (A OR B) OR (C OR D)
+                //don't count this as step as no transformation is performed
+                return expr;
+            }
+        } else if (leftIsPropComp && !rightIsPropComp) {
+            boolean leftOpIsOR = ((PropositionalCompound) leftChild).getOperator().equals(LogicalOperator.OR);
+            boolean leftOpIsAND = ((PropositionalCompound) leftChild).getOperator().equals(LogicalOperator.AND);
+
+            Expression leftLeft = ((PropositionalCompound) leftChild).getLeft();
+            Expression leftRight = ((PropositionalCompound) leftChild).getRight();
+
+            if (operatorIsOR && leftOpIsAND) {
+                //case: (A AND B) OR (C)
+                countCNFSteps++;
+                Expression result = PropositionalCompound.create(
+                        (Expression<Boolean>) pushDisjunction(PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightChild)),
+                        LogicalOperator.AND,
+                        pushDisjunction(PropositionalCompound.create(leftRight, LogicalOperator.OR, rightChild)));
+                return result;
+
+            } else if (operatorIsOR && leftOpIsOR) {
+                //case: (A OR B) OR (C)
+                //don't count this as step as no transformation is performed
+                return expr;
+            }
+        } else if (operatorIsOR && !leftIsPropComp && rightIsPropComp) {
+            boolean rightOpIsOR = ((PropositionalCompound) rightChild).getOperator().equals(LogicalOperator.OR);
+            boolean rightOpIsAND = ((PropositionalCompound) rightChild).getOperator().equals(LogicalOperator.AND);
+
+            Expression rightLeft = ((PropositionalCompound) rightChild).getLeft();
+            Expression rightRight = ((PropositionalCompound) rightChild).getRight();
+
+            if (rightOpIsAND) {
+                //case: (A) OR (C AND D)
+                countCNFSteps++;
+                Expression result = PropositionalCompound.create(
+                        (Expression<Boolean>) pushDisjunction(PropositionalCompound.create(leftChild, LogicalOperator.OR, rightLeft)),
+                        LogicalOperator.AND,
+                        pushDisjunction(PropositionalCompound.create(leftChild, LogicalOperator.OR, rightRight)));
+                return result;
+
+            } else if (rightOpIsOR) {
+                //case: (A) OR (C OR D)
+                //don't count this as step as no transformation is performed
+                return expr;
+            }
+        }
+        //if we are here, there are no conjunctions under disjunctions in the tree (anymore)
+        Expression result = PropositionalCompound.create(leftChild, operator, rightChild);
+        return result;
+    }
+
     @Override
     public Expression<?> visit(PropositionalCompound expr, Void data) {
         Expression leftChild = (Expression) visit(expr.getLeft());
@@ -70,32 +183,32 @@ public class ConjunctionCreatorVisitor extends
                 countCNFSteps++;
                 Expression result = PropositionalCompound.create(
                         PropositionalCompound.create(
-                                (Expression<Boolean>) visit(PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightLeft), data),
+                                (Expression<Boolean>) pushDisjunction(PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightLeft)),
                                 LogicalOperator.AND,
-                                visit(PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightRight), data)),
+                                pushDisjunction(PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightRight))),
                         LogicalOperator.AND,
                         PropositionalCompound.create(
-                                (Expression<Boolean>) visit(PropositionalCompound.create(leftRight, LogicalOperator.OR, rightLeft), data),
+                                (Expression<Boolean>) pushDisjunction(PropositionalCompound.create(leftRight, LogicalOperator.OR, rightLeft)),
                                 LogicalOperator.AND,
-                                visit(PropositionalCompound.create(leftRight, LogicalOperator.OR, rightRight), data)));
+                                pushDisjunction(PropositionalCompound.create(leftRight, LogicalOperator.OR, rightRight))));
                 return result;
 
             } else if (operatorIsOR && leftOpIsAND && rightOpIsOR) {
                 //case: (A AND B) OR (C OR D)
                 countCNFSteps++;
                 Expression result = PropositionalCompound.create(
-                        (Expression<Boolean>) visit(PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightChild), data),
+                        (Expression<Boolean>) pushDisjunction(PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightChild)),
                         LogicalOperator.AND,
-                        visit(PropositionalCompound.create(leftRight, LogicalOperator.OR, rightChild), data));
+                        pushDisjunction(PropositionalCompound.create(leftRight, LogicalOperator.OR, rightChild)));
                 return result;
 
             } else if (operatorIsOR && leftOpIsOR && rightOpIsAND) {
                 //case: (A OR B) OR (C AND D)
                 countCNFSteps++;
                 Expression result = PropositionalCompound.create(
-                        (Expression<Boolean>) visit(PropositionalCompound.create(leftChild, LogicalOperator.OR, rightLeft), data),
+                        (Expression<Boolean>) pushDisjunction(PropositionalCompound.create(leftChild, LogicalOperator.OR, rightLeft)),
                         LogicalOperator.AND,
-                        visit(PropositionalCompound.create(leftChild, LogicalOperator.OR, rightRight), data));
+                        pushDisjunction(PropositionalCompound.create(leftChild, LogicalOperator.OR, rightRight)));
                 return result;
 
             } else if (operatorIsOR && leftOpIsOR && rightOpIsOR) {
@@ -115,9 +228,9 @@ public class ConjunctionCreatorVisitor extends
                 //case: (A AND B) OR (C)
                 countCNFSteps++;
                 Expression result = PropositionalCompound.create(
-                        (Expression<Boolean>) visit(PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightChild), data),
+                        (Expression<Boolean>) pushDisjunction(PropositionalCompound.create(leftLeft, LogicalOperator.OR, rightChild)),
                         LogicalOperator.AND,
-                        visit(PropositionalCompound.create(leftRight, LogicalOperator.OR, rightChild), data));
+                        pushDisjunction(PropositionalCompound.create(leftRight, LogicalOperator.OR, rightChild)));
                 return result;
 
             } else if (operatorIsOR && leftOpIsOR) {
@@ -136,9 +249,9 @@ public class ConjunctionCreatorVisitor extends
                 //case: (A) OR (C AND D)
                 countCNFSteps++;
                 Expression result = PropositionalCompound.create(
-                        (Expression<Boolean>) visit(PropositionalCompound.create(leftChild, LogicalOperator.OR, rightLeft), data),
+                        (Expression<Boolean>) pushDisjunction(PropositionalCompound.create(leftChild, LogicalOperator.OR, rightLeft)),
                         LogicalOperator.AND,
-                        visit(PropositionalCompound.create(leftChild, LogicalOperator.OR, rightRight), data));
+                        pushDisjunction(PropositionalCompound.create(leftChild, LogicalOperator.OR, rightRight)));
                 return result;
 
             } else if (operatorIsOR && rightOpIsOR) {

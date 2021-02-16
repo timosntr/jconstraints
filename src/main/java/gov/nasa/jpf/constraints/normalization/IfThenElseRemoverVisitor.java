@@ -28,7 +28,7 @@ import gov.nasa.jpf.constraints.expressions.*;
 import gov.nasa.jpf.constraints.types.BuiltinTypes;
 import gov.nasa.jpf.constraints.util.DuplicatingVisitor;
 import gov.nasa.jpf.constraints.util.ExpressionUtil;
-//TODO: optimize by removing duplicates or expressions which are obviously evaluated to 'false'
+
 public class IfThenElseRemoverVisitor extends
         DuplicatingVisitor<Void> {
 

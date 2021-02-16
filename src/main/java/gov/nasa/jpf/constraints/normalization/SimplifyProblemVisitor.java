@@ -124,12 +124,25 @@ public class SimplifyProblemVisitor extends
 
         if(leftChildIsProp && rightChildIsProp) {
             if(leftChild.equals(rightChild)){
+                data.add(leftChild);
                 return visit(leftChild, data);
+               //return leftChild;
+            }
+            for(Object e: data){
+                if(e.equals(leftChild)){
+                    data.add(rightChild);
+                    return rightChild;
+                }
+                if(e.equals(rightChild)){
+                    data.add(leftChild);
+                    return leftChild;
+                }
             }
             LogicalOperator leftOp = ((PropositionalCompound) leftChild).getOperator();
             LogicalOperator rightOp = ((PropositionalCompound) rightChild).getOperator();
             if(operator.equals(leftOp) && operator.equals(rightOp)){
                 Expression newLeft = visit(leftChild, data);
+                //Expression newLeft = leftChild;
                 for (Object e : data) {
                     if (e.equals(((PropositionalCompound) rightChild).getLeft())) {
                         removeLeft = true;
@@ -142,11 +155,22 @@ public class SimplifyProblemVisitor extends
                     return newLeft;
                 } else {
                     return PropositionalCompound.create(newLeft, operator, visit(rightChild, data));
+                    //return PropositionalCompound.create(newLeft, operator, rightChild);
                 }
-            } else {
+            } else if(!operator.equals(leftOp) && !operator.equals(rightOp) && leftOp.equals(rightOp)){
                 Expression newLeft = visit(leftChild, data);
                 data.clear();
+                data.add(leftChild);
                 Expression newRight = visit(rightChild, data);
+                return PropositionalCompound.create(newLeft, operator, newRight);
+                //return PropositionalCompound.create(leftChild, operator, rightChild);
+
+            } else {
+                Expression newLeft = visit(leftChild, data);
+                //Expression newLeft = leftChild;
+                data.clear();
+                Expression newRight = visit(rightChild, data);
+                //Expression newRight = rightChild;
                 return PropositionalCompound.create(newLeft, operator, newRight);
             }
         }
@@ -154,6 +178,7 @@ public class SimplifyProblemVisitor extends
             LogicalOperator leftOp = ((PropositionalCompound) leftChild).getOperator();
             if(operator.equals(leftOp)){
                 Expression newLeft = visit(leftChild, data);
+                //Expression newLeft = leftChild;
                 for (Object e : data) {
                     if (e.equals(rightChild)) {
                         removeRight = true;
@@ -167,6 +192,7 @@ public class SimplifyProblemVisitor extends
                 }
             } else {
                 Expression newLeft = visit(leftChild, data);
+                //Expression newLeft = leftChild;
                 data.clear();
                 return PropositionalCompound.create(newLeft, operator, rightChild);
             }
@@ -175,6 +201,7 @@ public class SimplifyProblemVisitor extends
             LogicalOperator rightOp = ((PropositionalCompound) rightChild).getOperator();
             if(operator.equals(rightOp)){
                 Expression newRight = visit(rightChild, data);
+                //Expression newRight = rightChild;
                 for (Object e : data) {
                     if (e.equals(leftChild)) {
                         removeLeft = true;
@@ -188,6 +215,7 @@ public class SimplifyProblemVisitor extends
                 }
             } else {
                 Expression newRight = visit(rightChild, data);
+                //Expression newRight = rightChild;
                 data.clear();
                 return PropositionalCompound.create(leftChild, operator, newRight);
             }
@@ -207,7 +235,6 @@ public class SimplifyProblemVisitor extends
                     }
                 }
                 if(removeLeft && removeRight){
-                    //TODO: how to return nothing?
                     // here, actually we return on the level above
 
                 } else if(removeLeft){
@@ -223,7 +250,7 @@ public class SimplifyProblemVisitor extends
                 }
             }
         }
-
+        //todo: optimize
         if(operator.equals(LogicalOperator.EQUIV)){
             if(leftChild instanceof Constant){
                 if(((Constant<?>) leftChild).getValue().equals(Boolean.TRUE)) {
@@ -335,7 +362,7 @@ public class SimplifyProblemVisitor extends
                 }
             }
         }
-        //return PropositionalCompound.create(leftChild, operator, rightChild);
+
         return n;
     }
 
