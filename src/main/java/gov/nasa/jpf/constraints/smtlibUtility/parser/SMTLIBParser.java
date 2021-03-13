@@ -153,8 +153,7 @@ public class SMTLIBParser {
           cmd = parser.parseCommand();
           if (!(cmd instanceof C_exit || cmd instanceof C_get_model)) {
             throw new SMTLIBParserNotSupportedException(
-                "Check sat is only at the end of a smt problem allowed or a get_model is"
-                    + " required.");
+                "Check sat is only at the end of a smt problem allowed or a get_model is required.");
           }
         }
       } else if (cmd instanceof C_set_info
@@ -162,7 +161,7 @@ public class SMTLIBParser {
           || cmd instanceof C_set_option) {
         // It is safe to ignore the info commands.
       } else {
-        throw new SMTLIBParserNotSupportedException("Cannot pare the following command: " + cmd);
+        throw new SMTLIBParserNotSupportedException("Cannot parse the following command: " + cmd);
       }
     }
     return smtParser.problem;
@@ -624,8 +623,8 @@ public class SMTLIBParser {
       final Expression constant = convertTypeConstOrMinusConst(left.getType(), right);
       return new Tuple(left, constant);
     } else {
-      Expression righCast = right.as(left.getType());
-      if (righCast != null) {
+      Expression rightCast = right.as(left.getType());
+      if (rightCast != null) {
         return new Tuple(left, right);
       }
       Expression leftCast = left.as(right.getType());
