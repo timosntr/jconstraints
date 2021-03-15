@@ -77,7 +77,7 @@ public class SMTLIBParser {
   }
 
   public static SMTProblem parseSMTProgramFromFile(final String fileName)
-      throws IOException, SMTLIBParserException, ParserException {
+      throws IOException, SMTLIBParserException {
     String input =
         Files.readAllLines(Paths.get(fileName)).stream()
             .reduce(
@@ -99,7 +99,7 @@ public class SMTLIBParser {
   }
 
   public static SMTProblem parseSMTProgram(final String input)
-      throws IOException, IParser.ParserException, SMTLIBParserException {
+      throws IOException, SMTLIBParserException {
     final SMT smt = new SMT();
 
     final ISource toBeParsed =
@@ -130,8 +130,10 @@ public class SMTLIBParser {
       } else {
         throw new SMTLIBParserNotSupportedException("Cannot parse the following command: " + cmd);
       }
+      return smtParser.problem;
+    } catch (ParserException e) {
+      throw new SMTLIBParserException(e.getMessage());
     }
-    return smtParser.problem;
   }
 
   public Expression processAssert(final C_assert cmd) throws SMTLIBParserException {
